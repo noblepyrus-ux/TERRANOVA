@@ -55,3 +55,26 @@ Sistema **Fullstack** para la gestión integral de fincas, lotes, cultivos, tare
 ```bash
 git clone https://github.com/TU_USUARIO/terranova.git
 cd terranova
+
+### 2. Configurar el Backend
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### edita database.py con tus credenciales de PostgreSQL:
+
+engine = create_engine("postgresql://usuario:contraseña@localhost:5432/terranova")
+
+### Si es la primera vez que ejecutas el proyecto, crea la base de datos vacía en PostgreSQL:
+
+```sql
+CREATE DATABASE terranova;
+```
+
+### Es posible que falten columnas en la tabla tareas (por actualizaciones recientes del modelo). Ejecuta este script en la raiz del proyecto para sincronizar:
+
+```bash
+cd backend/scripts
+python add_tareas_columns.py
+```
