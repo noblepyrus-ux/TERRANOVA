@@ -1,1 +1,138 @@
-<p>lotes works!</p>
+<div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h2>🌾 Terranova</h2>
+          <p>Sistema Agrícola</p>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="nav-link" (click)="irAFincas()">
+            <span class="icon">🏠</span>
+            <span>Fincas</span>
+          </button>
+          
+          <button class="nav-link" (click)="irALotes()">
+            <span class="icon">🗺️</span>
+            <span>Lotes</span>
+          </button>
+          
+          <button class="nav-link" (click)="irACultivos()">
+            <span class="icon">🌱</span>
+            <span>Cultivos</span>
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+        </div>
+      </aside>
+  
+    <!-- Contenido principal -->
+    <main class="main-content">
+      <header class="dashboard-header">
+        <h1>🗺️ Gestión de Lotes</h1>
+        <button class="btn-primary" (click)="openForm()" [disabled]="fincas.length === 0">
+          {{ fincas.length === 0 ? 'Crea una finca primero' : '➕ Nuevo Lote' }}
+        </button>
+      </header>
+  
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="message-box error fade-in">
+        <span class="message-icon">❌</span>
+        <span class="message-text">{{ errorMessage }}</span>
+      </div>
+  
+      <!-- Tabla de Lotes -->
+      <div class="table-container">
+        <table class="data-table" *ngIf="lotes.length > 0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Área (ha)</th>
+              <th>Tipo de Suelo</th>
+              <th>Finca</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let lote of lotes; let i = index" class="fade-in">
+              <td>{{ i + 1 }}</td>
+              <td>{{ lote.nombre }}</td>
+              <td>{{ lote.area || 'N/A' }}</td>
+              <td>{{ lote.tipo_suelo || 'N/A' }}</td>
+              <td>{{ getNombreFinca(lote.finca_id) }}</td>
+              <td class="actions">
+                <button class="btn-view" (click)="verDetalle(lote.id)">️ Ver</button>
+                <button class="btn-edit" (click)="openForm(lote)">✏️ Editar</button>
+                <button class="btn-delete" (click)="deleteLote(lote.id)">🗑️ Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+  
+        <!-- Estado vacío -->
+        <div *ngIf="lotes.length === 0" class="empty-state">
+          <p> No hay lotes registrados</p>
+          <button class="btn-primary" (click)="openForm()" [disabled]="fincas.length === 0">
+            Crear tu primer lote
+          </button>
+        </div>
+      </div>
+  
+      <!-- Modal/Formulario -->
+      <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h2>{{ editingLote ? '✏️ Editar Lote' : '➕ Nuevo Lote' }}</h2>
+          
+          <form (ngSubmit)="saveLote()">
+            <div class="form-group">
+              <label for="nombre">Nombre *</label>
+              <input type="text" id="nombre" [(ngModel)]="nombre" name="nombre" required>
+            </div>
+  
+            <div class="form-group">
+              <label for="area">Área (hectáreas)</label>
+              <input type="number" id="area" [(ngModel)]="area" name="area" step="0.01">
+            </div>
+  
+            <div class="form-group">
+              <label for="tipo_suelo">Tipo de Suelo</label>
+              <input type="text" id="tipo_suelo" [(ngModel)]="tipo_suelo" name="tipo_suelo">
+            </div>
+  
+            <div class="form-group">
+              <label for="altitud">Altitud (msnm)</label>
+              <input type="number" id="altitud" [(ngModel)]="altitud" name="altitud" step="0.1">
+            </div>
+  
+            <div class="form-group">
+              <label for="clima">Clima</label>
+              <input type="text" id="clima" [(ngModel)]="clima" name="clima">
+            </div>
+  
+            <div class="form-group">
+              <label for="estado">Estado</label>
+              <input type="text" id="estado" [(ngModel)]="estado" name="estado">
+            </div>
+  
+            <div class="form-group">
+              <label for="notas">Notas</label>
+              <textarea id="notas" [(ngModel)]="notas" name="notas" rows="3"></textarea>
+            </div>
+  
+            <div class="form-group">
+              <label for="finca_id">Finca *</label>
+              <select id="finca_id" [(ngModel)]="finca_id" name="finca_id" required class="form-select">
+                <option *ngFor="let finca of fincas" [value]="finca.id">{{ finca.nombre }}</option>
+              </select>
+            </div>
+  
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+              <button type="submit" class="btn-primary">Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>

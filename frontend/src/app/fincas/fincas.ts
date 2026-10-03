@@ -1,14 +1,14 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';  //  Agregar RouterLinkActive
+import { Router } from '@angular/router';
 import { FincasService, Finca } from '../services/fincas.service';
 import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-fincas',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, FormsModule],
   templateUrl: './fincas.html',
   styleUrls: ['./fincas.css']
 })
@@ -18,7 +18,6 @@ export class FincasComponent implements OnInit {
   showForm = false;
   editingFinca: Finca | null = null;
   
-  // Datos del formulario
   nombre = '';
   ubicacion = '';
   area_total: number | null = null;
@@ -32,6 +31,19 @@ export class FincasComponent implements OnInit {
 
   ngOnInit() {
     this.loadFincas();
+  }
+
+  // ✅ MÉTODOS DE NAVEGACIÓN (agregar estos 3)
+  irAFincas() {
+    this.router.navigate(['/fincas']);
+  }
+
+  irALotes() {
+    this.router.navigate(['/lotes']);
+  }
+
+  irACultivos() {
+    this.router.navigate(['/cultivos']);
   }
 
   loadFincas() {
@@ -52,7 +64,6 @@ export class FincasComponent implements OnInit {
   }
 
   openForm(finca?: Finca) {
-    this.showForm = true;
     if (finca) {
       this.editingFinca = finca;
       this.nombre = finca.nombre;
@@ -64,6 +75,9 @@ export class FincasComponent implements OnInit {
       this.ubicacion = '';
       this.area_total = null;
     }
+    
+    this.showForm = true;
+    this.cdr.detectChanges();
   }
 
   closeForm() {
@@ -72,6 +86,7 @@ export class FincasComponent implements OnInit {
     this.nombre = '';
     this.ubicacion = '';
     this.area_total = null;
+    this.cdr.detectChanges();
   }
 
   saveFinca() {

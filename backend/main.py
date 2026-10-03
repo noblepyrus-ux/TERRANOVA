@@ -145,22 +145,38 @@ def delete_finca(finca_id: int, db: Session = Depends(get_db), current_user: mod
 
 # ==================== LOTES ====================
 
+# ==================== LOTES (Con seguridad multi-usuario) ====================
+
 @app.get("/lotes", response_model=list[schemas.LoteResponse])
-def list_lotes(db: Session = Depends(get_db)):
-    return db.query(models.Lote).all()
+def list_lotes(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Obtener los IDs de las fincas del usuario actual
+    fincas_ids = [finca.id for finca in db.query(models.Finca.id).filter(models.Finca.cuenta_id == current_user.id).all()]
+    if not fincas_ids:
+        return []
+    # Solo devolver lotes de las fincas del usuario
+    return db.query(models.Lote).filter(models.Lote.finca_id.in_(fincas_ids)).all()
 
 @app.get("/lotes/{lote_id}", response_model=schemas.LoteResponse)
-def get_lote(lote_id: int, db: Session = Depends(get_db)):
-    lote = db.query(models.Lote).filter(models.Lote.id == lote_id).first()
+def get_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Verificar que el lote existe y pertenece a una finca del usuario
+    lote = db.query(models.Lote).join(models.Finca).filter(
+        models.Lote.id == lote_id, 
+        models.Finca.cuenta_id == current_user.id
+    ).first()
     if not lote:
-        raise HTTPException(status_code=404, detail="Lote no encontrado")
+        raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
     return lote
 
 @app.post("/lotes", response_model=schemas.LoteResponse, status_code=201)
-def create_lote(lote: schemas.LoteCreate, db: Session = Depends(get_db)):
-    finca = db.query(models.Finca).filter(models.Finca.id == lote.finca_id).first()
+def create_lote(lote: schemas.LoteCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Verificar que la finca existe y le pertenece al usuario
+    finca = db.query(models.Finca).filter(
+        models.Finca.id == lote.finca_id, 
+        models.Finca.cuenta_id == current_user.id
+    ).first()
     if not finca:
-        raise HTTPException(status_code=404, detail="Finca no encontrada")
+        raise HTTPException(status_code=403, detail="No tienes permiso para agregar lotes a esta finca")
+    
     db_lote = models.Lote(**lote.model_dump())
     db.add(db_lote)
     db.commit()
@@ -168,20 +184,60 @@ def create_lote(lote: schemas.LoteCreate, db: Session = Depends(get_db)):
     return db_lote
 
 @app.put("/lotes/{lote_id}", response_model=schemas.LoteResponse)
-def update_lote(lote_id: int, lote: schemas.LoteUpdate, db: Session = Depends(get_db)):
-    db_lote = db.query(models.Lote).filter(models.Lote.id == lote_id).first()
+def update_lote(lote_id: int, lote: schemas.LoteUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Verificar que el lote existe y pertenece al usuario
+    db_lote = db.query(models.Lote).join(models.Finca).filter(
+        models.Lote.id == lote_id, 
+        models.Finca.cuenta_id == current_user.id
+    ).first()
     if not db_lote:
-        raise HTTPException(status_code=404, detail="Lote no encontrado")
+        raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
+    
     data = lote.model_dump(exclude_unset=True)
     if "finca_id" in data:
-        finca = db.query(models.Finca).filter(models.Finca.id == data["finca_id"]).first()
+        finca = db.query(models.Finca).filter(
+            models.Finca.id == data["finca_id"],
+            models.Finca.cuenta_id == current_user.id
+        ).first()
         if not finca:
-            raise HTTPException(status_code=404, detail="Finca no encontrada")
+            raise HTTPException(status_code=403, detail="No tienes permiso para mover el lote a esa finca")
+    
     for key, value in data.items():
         setattr(db_lote, key, value)
     db.commit()
     db.refresh(db_lote)
     return db_lote
+
+@app.delete("/lotes/{lote_id}", status_code=204)
+def delete_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Verificar que el lote existe y pertenece al usuario
+    db_lote = db.query(models.Lote).join(models.Finca).filter(
+        models.Lote.id == lote_id, 
+        models.Finca.cuenta_id == current_user.id
+    ).first()
+    if not db_lote:
+        raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
+    
+    db.delete(db_lote)
+    db.commit()
+    return None
+
+# ==================== CULTIVOS POR LOTE (Para la vista de detalle) ====================
+
+@app.get("/lotes/{lote_id}/cultivos", response_model=list[schemas.CultivoResponse])
+def get_cultivos_by_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Verificar que el lote existe y pertenece al usuario
+    lote = db.query(models.Lote).join(models.Finca).filter(
+        models.Lote.id == lote_id, 
+        models.Finca.cuenta_id == current_user.id
+    ).first()
+    
+    if not lote:
+        raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
+    
+    # Obtener todos los cultivos de este lote
+    cultivos = db.query(models.Cultivo).filter(models.Cultivo.lote_id == lote_id).all()
+    return cultivos
 
 @app.delete("/lotes/{lote_id}", status_code=204)
 def delete_lote(lote_id: int, db: Session = Depends(get_db)):

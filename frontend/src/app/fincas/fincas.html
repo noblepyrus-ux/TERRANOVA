@@ -1,23 +1,24 @@
 <div class="app-container">
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <h2>🌾 Terranova</h2>
       <p>Sistema Agrícola</p>
     </div>
     <nav class="sidebar-nav">
-      <a routerLink="/fincas" class="nav-link" routerLinkActive="active">
+      <button class="nav-link" (click)="irAFincas()">
         <span class="icon">🏠</span>
         <span>Fincas</span>
-      </a>
-      <a routerLink="/lotes" class="nav-link" routerLinkActive="active">
-        <span class="icon"></span>
+      </button>
+      
+      <button class="nav-link" (click)="irALotes()">
+        <span class="icon">🗺️</span>
         <span>Lotes</span>
-      </a>
-      <a routerLink="/cultivos" class="nav-link" routerLinkActive="active">
+      </button>
+      
+      <button class="nav-link" (click)="irACultivos()">
         <span class="icon">🌱</span>
         <span>Cultivos</span>
-      </a>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
@@ -51,8 +52,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let finca of fincas" class="fade-in">
-            <td>{{ finca.id }}</td>
+          <tr *ngFor="let finca of fincas; let i = index" class="fade-in">            <td>{{ i+1 }}</td>
             <td>{{ finca.nombre }}</td>
             <td>{{ finca.ubicacion || 'N/A' }}</td>
             <td>{{ finca.area_total || 'N/A' }}</td>

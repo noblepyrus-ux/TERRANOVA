@@ -1,1 +1,124 @@
-<p>cultivos works!</p>
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>🌾 Terranova</h2>
+        <p>Sistema Agrícola</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-link" (click)="irAFincas()">
+          <span class="icon">🏠</span>
+          <span>Fincas</span>
+        </button>
+        
+        <button class="nav-link" (click)="irALotes()">
+          <span class="icon">🗺️</span>
+          <span>Lotes</span>
+        </button>
+        
+        <button class="nav-link" (click)="irACultivos()">
+          <span class="icon">🌱</span>
+          <span>Cultivos</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+      </div>
+    </aside>
+  
+    <!-- Contenido principal -->
+    <main class="main-content">
+      <header class="dashboard-header">
+        <h1> 🍃  Gestión de Cultivos</h1>
+        <button class="btn-primary" (click)="openForm()" [disabled]="lotes.length === 0">
+          {{ lotes.length === 0 ? 'Crea un lote primero' : '➕ Nuevo Cultivo' }}
+        </button>
+      </header>
+  
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="message-box error fade-in">
+        <span class="message-icon">❌</span>
+        <span class="message-text">{{ errorMessage }}</span>
+      </div>
+  
+      <!-- Tabla de Cultivos -->
+      <div class="table-container">
+        <table class="data-table" *ngIf="cultivos.length > 0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Variedad</th>
+              <th>Estado</th>
+              <th>Fecha Siembra</th>
+              <th>Lote</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let cultivo of cultivos; let i = index" class="fade-in">
+              <td>{{ i + 1 }}</td>
+              <td>{{ cultivo.nombre }}</td>
+              <td>{{ cultivo.variedad || 'N/A' }}</td>
+              <td>{{ cultivo.estado || 'N/A' }}</td>
+              <td>{{ cultivo.fecha_siembra || 'N/A' }}</td>
+              <td>{{ getNombreLote(cultivo.lote_id) }}</td>
+              <td class="actions">
+                <button class="btn-edit" (click)="openForm(cultivo)">✏️ Editar</button>
+                <button class="btn-delete" (click)="deleteCultivo(cultivo.id)">🗑️ Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+  
+        <!-- Estado vacío -->
+        <div *ngIf="cultivos.length === 0" class="empty-state">
+          <p>🌱 No hay cultivos registrados</p>
+          <button class="btn-primary" (click)="openForm()" [disabled]="lotes.length === 0">
+            Crear tu primer cultivo
+          </button>
+        </div>
+      </div>
+  
+      <!-- Modal/Formulario -->
+      <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h2>{{ editingCultivo ? '✏️ Editar Cultivo' : '➕ Nuevo Cultivo' }}</h2>
+          
+          <form (ngSubmit)="saveCultivo()">
+            <div class="form-group">
+              <label for="nombre">Nombre *</label>
+              <input type="text" id="nombre" [(ngModel)]="nombre" name="nombre" required>
+            </div>
+  
+            <div class="form-group">
+              <label for="variedad">Variedad</label>
+              <input type="text" id="variedad" [(ngModel)]="variedad" name="variedad">
+            </div>
+  
+            <div class="form-group">
+              <label for="estado">Estado</label>
+              <input type="text" id="estado" [(ngModel)]="estado" name="estado" placeholder="Ej: En crecimiento, Cosechado">
+            </div>
+  
+            <div class="form-group">
+              <label for="fecha_siembra">Fecha de Siembra</label>
+              <input type="date" id="fecha_siembra" [(ngModel)]="fecha_siembra" name="fecha_siembra">
+            </div>
+  
+            <div class="form-group">
+              <label for="lote_id">Lote *</label>
+              <select id="lote_id" [(ngModel)]="lote_id" name="lote_id" required class="form-select">
+                <option *ngFor="let lote of lotes" [value]="lote.id">{{ lote.nombre }}</option>
+              </select>
+            </div>
+  
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+              <button type="submit" class="btn-primary">Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
