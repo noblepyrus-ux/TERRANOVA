@@ -1,0 +1,103 @@
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>🌾 Terranova</h2>
+      <p>Sistema Agrícola</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/fincas" class="nav-link" routerLinkActive="active">
+        <span class="icon">🏠</span>
+        <span>Fincas</span>
+      </a>
+      <a routerLink="/lotes" class="nav-link" routerLinkActive="active">
+        <span class="icon"></span>
+        <span>Lotes</span>
+      </a>
+      <a routerLink="/cultivos" class="nav-link" routerLinkActive="active">
+        <span class="icon">🌱</span>
+        <span>Cultivos</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>🌾 Mis Fincas</h1>
+      <button class="btn-primary" (click)="openForm()">➕ Nueva Finca</button>
+    </header>
+
+    <!-- Mensaje de error -->
+    <div *ngIf="errorMessage" class="message-box error fade-in">
+      <span class="message-icon">❌</span>
+      <span class="message-text">{{ errorMessage }}</span>
+    </div>
+
+    <!-- Tabla de Fincas -->
+    <div class="fincas-table-container">
+      <table class="fincas-table" *ngIf="fincas.length > 0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Ubicación</th>
+            <th>Área Total (ha)</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let finca of fincas" class="fade-in">
+            <td>{{ finca.id }}</td>
+            <td>{{ finca.nombre }}</td>
+            <td>{{ finca.ubicacion || 'N/A' }}</td>
+            <td>{{ finca.area_total || 'N/A' }}</td>
+            <td class="actions">
+              <button class="btn-edit" (click)="openForm(finca)">✏️ Editar</button>
+              <button class="btn-delete" (click)="deleteFinca(finca.id)">🗑️ Eliminar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Estado vacío -->
+      <div *ngIf="fincas.length === 0" class="empty-state">
+        <p>🌱 No tienes fincas registradas</p>
+        <button class="btn-primary" (click)="openForm()">Crear tu primera finca</button>
+      </div>
+    </div>
+
+    <!-- Modal/Formulario -->
+    <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h2>{{ editingFinca ? '✏️ Editar Finca' : '➕ Nueva Finca' }}</h2>
+        
+        <form (ngSubmit)="saveFinca()">
+          <div class="form-group">
+            <label for="nombre">Nombre *</label>
+            <input type="text" id="nombre" [(ngModel)]="nombre" name="nombre" required>
+          </div>
+
+          <div class="form-group">
+            <label for="ubicacion">Ubicación</label>
+            <input type="text" id="ubicacion" [(ngModel)]="ubicacion" name="ubicacion">
+          </div>
+
+          <div class="form-group">
+            <label for="area_total">Área Total (hectáreas)</label>
+            <input type="number" id="area_total" [(ngModel)]="area_total" name="area_total" step="0.01">
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+            <button type="submit" class="btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
