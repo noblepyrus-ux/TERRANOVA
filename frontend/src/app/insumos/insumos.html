@@ -1,0 +1,139 @@
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>🌾 Terranova</h2>
+      <p>Sistema Agrícola</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-link" (click)="irAFincas()">
+        <span class="icon">🏠</span>
+        <span>Fincas</span>
+      </button>
+      <button class="nav-link" (click)="irALotes()">
+        <span class="icon">🗺️</span>
+        <span>Lotes</span>
+      </button>
+      <button class="nav-link" (click)="irACultivos()">
+        <span class="icon">🌱</span>
+        <span>Cultivos</span>
+      </button>
+      <button class="nav-link" (click)="irATareas()">
+        <span class="icon">📋</span>
+        <span>Tareas</span>
+      </button>
+      <button class="nav-link" (click)="irAInsumos()">
+        <span class="icon">📦</span>
+        <span>Insumos</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+    <header class="dashboard-header">
+      <h1>📦 Gestión de Insumos</h1>
+      <button class="btn-primary" (click)="openForm()">➕ Nuevo Insumo</button>
+    </header>
+
+    <div *ngIf="errorMessage" class="message-box error fade-in">
+      <span class="message-icon">❌</span>
+      <span class="message-text">{{ errorMessage }}</span>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table" *ngIf="insumos.length > 0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Stock</th>
+            <th>Unidad</th>
+            <th>Costo Prom.</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let insumo of insumos; let i = index" class="fade-in">
+            <td>{{ i + 1 }}</td>
+            <td>{{ insumo.nombre }}</td>
+            <td>{{ insumo.tipo || 'N/A' }}</td>
+            <td>{{ insumo.stock_actual ?? 0 }}</td>
+            <td>{{ insumo.unidad || 'N/A' }}</td>
+            <td>$ {{ insumo.costo_promedio?.toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</td>
+            <td class="actions">
+              <button class="btn-edit" (click)="openForm(insumo)">✏️ Editar</button>
+              <button class="btn-delete" (click)="deleteInsumo(insumo.id)">🗑️ Eliminar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="insumos.length === 0" class="empty-state">
+        <p>📦 No hay insumos registrados</p>
+        <button class="btn-primary" (click)="openForm()">Crear tu primer insumo</button>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h2>{{ editingInsumo ? '✏️ Editar Insumo' : '➕ Nuevo Insumo' }}</h2>
+        
+        <form (ngSubmit)="saveInsumo()">
+          <div class="form-group">
+            <label for="nombre">Nombre *</label>
+            <input type="text" id="nombre" [(ngModel)]="nombre" name="nombre" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="tipo">Tipo</label>
+              <select id="tipo" [(ngModel)]="tipo" name="tipo" class="form-select">
+                <option value="">Seleccionar...</option>
+                <option *ngFor="let t of tipos" [value]="t">{{ t }}</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="unidad">Unidad</label>
+              <select id="unidad" [(ngModel)]="unidad" name="unidad" class="form-select">
+                <option value="">Seleccionar...</option>
+                <option *ngFor="let u of unidades" [value]="u">{{ u }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="stock_actual">Stock Actual</label>
+              <input type="number" id="stock_actual" [(ngModel)]="stock_actual" name="stock_actual" step="0.01">
+            </div>
+
+            <div class="form-group">
+              <label for="costo_promedio">Costo Promedio ($)</label>
+              <input 
+                type="text" 
+                id="costo_promedio" 
+                [value]="costo_input" 
+                (input)="costo_input = $any($event.target).value"
+                (blur)="onCostoBlur()" 
+                (focus)="onCostoFocus()" 
+                class="form-control"
+                placeholder="$ 0">
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+            <button type="submit" class="btn-primary" [disabled]="!nombre">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>

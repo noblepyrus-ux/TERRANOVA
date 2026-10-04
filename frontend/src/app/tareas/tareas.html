@@ -1,0 +1,230 @@
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2> Terranova</h2>
+        <p>Sistema Agrícola</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-link" (click)="irAFincas()">
+          <span class="icon">🏠</span>
+          <span>Fincas</span>
+        </button>
+        <button class="nav-link" (click)="irALotes()">
+          <span class="icon">🗺️</span>
+          <span>Lotes</span>
+        </button>
+        <button class="nav-link" (click)="irACultivos()">
+          <span class="icon">🌱</span>
+          <span>Cultivos</span>
+        </button>
+        <button class="nav-link" (click)="irATareas()">
+          <span class="icon">📋</span>
+          <span>Tareas</span>
+        </button>
+        <button class="nav-link" (click)="irAInsumos()">
+          <span class="icon">📦</span>
+          <span>Insumos</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+      </div>
+    </aside>
+  
+    <!-- Contenido principal -->
+    <main class="main-content">
+      <header class="dashboard-header">
+        <h1>📋 Gestión de Tareas</h1>
+        <button class="btn-primary" (click)="openForm()">➕ Nueva Tarea</button>
+      </header>
+  
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="message-box error fade-in">
+        <span class="message-icon">❌</span>
+        <span class="message-text">{{ errorMessage }}</span>
+      </div>
+  
+      <!-- Tabla de Tareas -->
+      <div class="table-container">
+        <table class="data-table" *ngIf="tareas.length > 0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th>Alcance</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tarea of tareas; let i = index" class="fade-in">
+              <td>{{ i + 1 }}</td>
+              <td>{{ tarea.nombre }}</td>
+              <td>{{ tarea.tipo || 'N/A' }}</td>
+              <td>
+                <span class="badge" [ngClass]="tarea.estado?.toLowerCase().replace(' ', '-')">
+                  {{ tarea.estado || 'N/A' }}
+                </span>
+              </td>
+              <td>{{ tarea.fecha || 'N/A' }}</td>
+              <td>{{ getNombreAlcance(tarea) }}</td>
+              <td class="actions">
+                <button class="btn-edit" (click)="openForm(tarea)">✏️ Editar</button>
+                <button class="btn-delete" (click)="deleteTarea(tarea.id)">🗑️ Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+  
+        <!-- Estado vacío -->
+        <div *ngIf="tareas.length === 0" class="empty-state">
+          <p>📋 No hay tareas registradas</p>
+          <button class="btn-primary" (click)="openForm()">Crear tu primera tarea</button>
+        </div>
+      </div>
+  
+                  <!-- Modal/Formulario -->
+    <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h2>{{ editingTarea ? '✏️ Editar Tarea' : '➕ Nueva Tarea' }}</h2>
+        
+        <form (ngSubmit)="saveTarea()">
+          <div class="form-group">
+            <label for="nombre">Nombre *</label>
+            <input type="text" id="nombre" [(ngModel)]="nombre" name="nombre" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="tipo">Tipo</label>
+              <select id="tipo" [(ngModel)]="tipo" name="tipo" class="form-select">
+                <option value="">Seleccionar...</option>
+                <option *ngFor="let t of tipos" [value]="t">{{ t }}</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="estado">Estado</label>
+              <select id="estado" [(ngModel)]="estado" name="estado" class="form-select">
+                <option value="">Seleccionar...</option>
+                <option *ngFor="let e of estados" [value]="e">{{ e }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="fecha">Fecha</label>
+            <input type="date" id="fecha" [(ngModel)]="fecha" name="fecha">
+          </div>
+
+          <div class="form-group">
+            <label for="alcance_id">Alcance *</label>
+            <select 
+              id="alcance_id" 
+              [ngModel]="alcance_id" 
+              (ngModelChange)="onAlcanceSelected($event)" 
+              name="alcance_id" 
+              required 
+              class="form-select">
+              <option *ngFor="let a of alcances" [ngValue]="a.id">{{ a.tipo }}</option>
+            </select>
+          </div>
+
+          <!-- SELECT DINÁMICO: Finca -->
+          <div class="form-group" *ngIf="alcance_id === 1">
+            <label for="selected_finca_id">Seleccionar Finca</label>
+            <select id="selected_finca_id" [(ngModel)]="selected_finca_id" name="selected_finca_id" class="form-select">
+              <option [ngValue]="undefined">Todas las fincas</option>
+              <option *ngFor="let f of fincas" [ngValue]="f.id">{{ f.nombre }}</option>
+            </select>
+          </div>
+
+          <!-- SELECT DINÁMICO: Lote -->
+          <div class="form-group" *ngIf="alcance_id === 2">
+            <label for="selected_lote_id">Seleccionar Lote</label>
+            <select id="selected_lote_id" [(ngModel)]="selected_lote_id" name="selected_lote_id" class="form-select">
+              <option [ngValue]="undefined">Todos los lotes</option>
+              <option *ngFor="let l of lotes" [ngValue]="l.id">{{ l.nombre }} ({{ l.area }} ha)</option>
+            </select>
+          </div>
+
+          <!-- SELECT DINÁMICO: Cultivo -->
+          <div class="form-group" *ngIf="alcance_id === 3">
+            <label for="selected_cultivo_id">Seleccionar Cultivo</label>
+            <select id="selected_cultivo_id" [(ngModel)]="selected_cultivo_id" name="selected_cultivo_id" class="form-select">
+              <option [ngValue]="undefined">Todos los cultivos</option>
+              <option *ngFor="let c of cultivos" [ngValue]="c.id">{{ c.nombre }} ({{ c.variedad || 'Sin variedad' }})</option>
+            </select>
+          </div>
+
+                    <!-- Sección de Insumo -->
+                    <div class="form-group">
+                      <label for="insumo_id">Insumo (opcional)</label>
+                      <select 
+                        id="insumo_id" 
+                        [ngModel]="selected_insumo?.id" 
+                        (ngModelChange)="onInsumoChange($event)" 
+                        name="insumo_id" 
+                        class="form-select">
+                        <option [ngValue]="undefined">Sin insumo</option>
+                        <option *ngFor="let ins of insumos" [ngValue]="ins.id">
+                          {{ ins.nombre }} (Stock: {{ ins.stock_actual }} {{ ins.unidad }}) - {{ formatearPesos(ins.costo_promedio) }}
+                        </option>
+                      </select>
+                    </div>
+          
+                    <!-- Información del insumo seleccionado -->
+                    <div class="insumo-info" *ngIf="selected_insumo">
+                      <div class="info-row">
+                        <span class="info-label">Stock disponible:</span>
+                        <span class="info-value">{{ selected_insumo.stock_actual }} {{ selected_insumo.unidad }}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Costo unitario:</span>
+                        <span class="info-value">{{ formatearPesos(selected_insumo.costo_promedio) }}</span>
+                      </div>
+                    </div>
+          
+                    <div class="form-group">
+                      <label for="cantidad_usada">Cantidad usada</label>
+                      <input 
+                        type="number" 
+                        id="cantidad_usada" 
+                        [(ngModel)]="cantidad_usada" 
+                        name="cantidad_usada" 
+                        step="0.01"
+                        [max]="selected_insumo?.stock_actual ?? 999999" 
+                        placeholder="Ingrese la cantidad">
+                      <small class="help-text" *ngIf="selected_insumo">
+                        Máximo disponible: {{ selected_insumo.stock_actual }} {{ selected_insumo.unidad }}
+                      </small>
+                    </div>
+                    
+                    <!-- Costo total calculado -->
+                    <div class="costo-total" *ngIf="selected_insumo && cantidad_usada">
+                      <span class="costo-label">Costo total de la tarea:</span>
+                      <span class="costo-valor">{{ formatearPesos(getCostoTotal()) }}</span>
+                    </div>
+
+          <div class="form-group">
+            <label for="descripcion">Descripción</label>
+            <textarea id="descripcion" [(ngModel)]="descripcion" name="descripcion" rows="3"></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+            <button 
+              type="submit" 
+              class="btn-primary" 
+              [disabled]="!nombre || !alcance_id">
+              Guardar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    </main>
+  </div>

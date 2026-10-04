@@ -300,18 +300,18 @@ def delete_cultivo(cultivo_id: int, db: Session = Depends(get_db)):
 # ==================== INSUMOS ====================
 
 @app.get("/insumos", response_model=list[schemas.InsumoResponse])
-def list_insumos(db: Session = Depends(get_db)):
+def list_insumos(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     return db.query(models.Insumo).all()
 
 @app.get("/insumos/{insumo_id}", response_model=schemas.InsumoResponse)
-def get_insumo(insumo_id: int, db: Session = Depends(get_db)):
+def get_insumo(insumo_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     insumo = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
     if not insumo:
         raise HTTPException(status_code=404, detail="Insumo no encontrado")
     return insumo
 
 @app.post("/insumos", response_model=schemas.InsumoResponse, status_code=201)
-def create_insumo(insumo: schemas.InsumoCreate, db: Session = Depends(get_db)):
+def create_insumo(insumo: schemas.InsumoCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_insumo = models.Insumo(**insumo.model_dump())
     db.add(db_insumo)
     db.commit()
@@ -319,25 +319,28 @@ def create_insumo(insumo: schemas.InsumoCreate, db: Session = Depends(get_db)):
     return db_insumo
 
 @app.put("/insumos/{insumo_id}", response_model=schemas.InsumoResponse)
-def update_insumo(insumo_id: int, insumo: schemas.InsumoUpdate, db: Session = Depends(get_db)):
+def update_insumo(insumo_id: int, insumo: schemas.InsumoUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_insumo = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
     if not db_insumo:
         raise HTTPException(status_code=404, detail="Insumo no encontrado")
-    for key, value in insumo.model_dump(exclude_unset=True).items():
+    
+    data = insumo.model_dump(exclude_unset=True)
+    for key, value in data.items():
         setattr(db_insumo, key, value)
+    
     db.commit()
     db.refresh(db_insumo)
     return db_insumo
 
 @app.delete("/insumos/{insumo_id}", status_code=204)
-def delete_insumo(insumo_id: int, db: Session = Depends(get_db)):
+def delete_insumo(insumo_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_insumo = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
     if not db_insumo:
         raise HTTPException(status_code=404, detail="Insumo no encontrado")
+    
     db.delete(db_insumo)
     db.commit()
-
-
+    return None
 # ==================== COMPRAS ====================
 
 @app.get("/compras", response_model=list[schemas.CompraResponse])
@@ -477,29 +480,54 @@ def delete_categoria(categoria_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-# ==================== TAREAS ====================
+# ==================== TAREAS (Con seguridad multi-usuario) ====================
 
 @app.get("/tareas", response_model=list[schemas.TareaResponse])
-def list_tareas(db: Session = Depends(get_db)):
-    return db.query(models.Tarea).all()
+def list_tareas(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    from sqlalchemy import or_
+    
+    # Obtener IDs de entidades del usuario
+    lotes_ids = [l.id for l in db.query(models.Lote.id).join(models.Finca).filter(models.Finca.cuenta_id == current_user.id).all()]
+    cultivos_ids = [c.id for c in db.query(models.Cultivo.id).join(models.Lote).join(models.Finca).filter(models.Finca.cuenta_id == current_user.id).all()]
+    
+    # Filtrar tareas que pertenezcan a las entidades del usuario o sean generales
+    query = db.query(models.Tarea)
+    filtros = []
+    
+    if lotes_ids:
+        filtros.append(models.Tarea.lote_id.in_(lotes_ids))
+    if cultivos_ids:
+        filtros.append(models.Tarea.cultivo_id.in_(cultivos_ids))
+    # Tareas generales (sin lote ni cultivo)
+    filtros.append((models.Tarea.lote_id == None) & (models.Tarea.cultivo_id == None))
+    
+    tareas = query.filter(or_(*filtros)).all()
+    return tareas
 
 @app.get("/tareas/{tarea_id}", response_model=schemas.TareaResponse)
-def get_tarea(tarea_id: int, db: Session = Depends(get_db)):
+def get_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     tarea = db.query(models.Tarea).filter(models.Tarea.id == tarea_id).first()
     if not tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     return tarea
 
 @app.post("/tareas", response_model=schemas.TareaResponse, status_code=201)
-def create_tarea(tarea: schemas.TareaCreate, db: Session = Depends(get_db)):
+def create_tarea(tarea: schemas.TareaCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Validar que el alcance existe
     alcance = db.query(models.Alcance).filter(models.Alcance.id == tarea.alcance_id).first()
     if not alcance:
         raise HTTPException(status_code=404, detail="Alcance no encontrado")
     
+    # Validar que el insumo existe si se proporciona
+    if tarea.insumo_id:
+        insumo = db.query(models.Insumo).filter(models.Insumo.id == tarea.insumo_id).first()
+        if not insumo:
+            raise HTTPException(status_code=404, detail="Insumo no encontrado")
+    
     db_tarea = models.Tarea(**tarea.model_dump())
     db.add(db_tarea)
     
-    # Si hay insumo, actualizar stock
+    # Si hay insumo, actualizar stock (mantenemos tu lógica original)
     if tarea.insumo_id and tarea.cantidad_usada:
         insumo = db.query(models.Insumo).filter(models.Insumo.id == tarea.insumo_id).first()
         if insumo:
@@ -510,24 +538,39 @@ def create_tarea(tarea: schemas.TareaCreate, db: Session = Depends(get_db)):
     return db_tarea
 
 @app.put("/tareas/{tarea_id}", response_model=schemas.TareaResponse)
-def update_tarea(tarea_id: int, tarea: schemas.TareaUpdate, db: Session = Depends(get_db)):
+def update_tarea(tarea_id: int, tarea: schemas.TareaUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_tarea = db.query(models.Tarea).filter(models.Tarea.id == tarea_id).first()
     if not db_tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    for key, value in tarea.model_dump(exclude_unset=True).items():
+    
+    data = tarea.model_dump(exclude_unset=True)
+    
+    if "alcance_id" in data:
+        alcance = db.query(models.Alcance).filter(models.Alcance.id == data["alcance_id"]).first()
+        if not alcance:
+            raise HTTPException(status_code=404, detail="Alcance no encontrado")
+    
+    if "insumo_id" in data and data["insumo_id"] is not None:
+        insumo = db.query(models.Insumo).filter(models.Insumo.id == data["insumo_id"]).first()
+        if not insumo:
+            raise HTTPException(status_code=404, detail="Insumo no encontrado")
+    
+    for key, value in data.items():
         setattr(db_tarea, key, value)
+    
     db.commit()
     db.refresh(db_tarea)
     return db_tarea
 
 @app.delete("/tareas/{tarea_id}", status_code=204)
-def delete_tarea(tarea_id: int, db: Session = Depends(get_db)):
+def delete_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_tarea = db.query(models.Tarea).filter(models.Tarea.id == tarea_id).first()
     if not db_tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
+    
     db.delete(db_tarea)
     db.commit()
-
+    return None
 
 # ==================== GASTOS OPERATIVOS ====================
 

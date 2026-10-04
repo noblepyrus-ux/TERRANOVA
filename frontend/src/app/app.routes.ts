@@ -5,6 +5,9 @@ import { FincasComponent } from './fincas/fincas';
 import { LotesComponent } from './lotes/lotes';
 import { CultivosComponent } from './cultivos/cultivos';
 import { LoteDetalleComponent } from './lotes/lote-detalle/lote-detalle';
+import { TareasComponent } from './tareas/tareas'; 
+import { InsumosComponent } from './insumos/insumos';
+
 
 export const routes: Routes = [
   { path: 'lotes/:id', component: LoteDetalleComponent },
@@ -13,6 +16,8 @@ export const routes: Routes = [
   { path: 'fincas', component: FincasComponent },
   { path: 'lotes', component: LotesComponent },
   { path: 'cultivos', component: CultivosComponent },
+  { path: 'tareas', component: TareasComponent }, 
+  { path: 'insumos', component: InsumosComponent },
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: '**', redirectTo: '/login' }
 ];

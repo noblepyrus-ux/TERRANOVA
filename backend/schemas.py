@@ -111,12 +111,13 @@ class CultivoResponse(CultivoBase):
 
 
 # ==================== INSUMOS ====================
+
 class InsumoBase(BaseModel):
     nombre: str
     tipo: Optional[str] = None
     unidad: Optional[str] = None
-    stock_actual: Optional[float] = None
-    costo_promedio: Optional[float] = None
+    stock_actual: Optional[float] = 0.0
+    costo_promedio: Optional[float] = 0.0
 
 class InsumoCreate(InsumoBase):
     pass
@@ -131,8 +132,6 @@ class InsumoUpdate(BaseModel):
 class InsumoResponse(InsumoBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
-
-
 # ==================== COMPRAS ====================
 class CompraBase(BaseModel):
     cantidad: float

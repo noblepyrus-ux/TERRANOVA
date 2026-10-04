@@ -53,6 +53,12 @@ export class CultivosComponent implements OnInit {
     this.router.navigate(['/cultivos']);
   }
 
+  irATareas() {
+    this.router.navigate(['/tareas']);
+  }
+
+  irAInsumos() { this.router.navigate(['/insumos']); }
+
   loadLotes() {
     this.lotesService.getLotes().subscribe({
       next: (lotes: Lote[]) => {
