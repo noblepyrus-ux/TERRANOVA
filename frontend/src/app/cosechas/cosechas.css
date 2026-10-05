@@ -7,12 +7,18 @@
   /* Sidebar */
   .sidebar {
     width: 260px;
+    min-width: 260px;
     background: linear-gradient(180deg, #1b5e20 0%, #2e7d32 100%);
     color: white;
     padding: 2rem 1rem;
     display: flex;
     flex-direction: column;
     box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow-y: auto;
   }
   
   .sidebar-header {
@@ -24,12 +30,14 @@
   .sidebar-header h2 {
     margin: 0;
     font-size: 1.5rem;
+    color: white;
   }
   
   .sidebar-header p {
     margin: 0.5rem 0 0 0;
     font-size: 0.85rem;
     opacity: 0.8;
+    color: white;
   }
   
   .sidebar-nav {
@@ -54,15 +62,11 @@
     width: 100%;
     text-align: left;
     font-size: 1rem;
+    font-family: inherit;
   }
   
   .nav-link:hover {
     background: rgba(255,255,255,0.1);
-  }
-  
-  .nav-link.active {
-    background: rgba(255,255,255,0.2);
-    font-weight: 600;
   }
   
   .nav-link .icon {
@@ -93,8 +97,10 @@
   /* Main content */
   .main-content {
     flex: 1;
+    margin-left: 260px;
     padding: 2rem;
     overflow-y: auto;
+    min-height: 100vh;
   }
   
   .dashboard-header {
@@ -353,6 +359,42 @@
     font-weight: 600;
   }
   
+  /* Badges de estado */
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  
+  .badge.pendiente {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .badge.en-progreso {
+    background: #cce5ff;
+    color: #004085;
+  }
+  
+  .badge.completada {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .badge.cancelada {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  /* Fila de formulario en dos columnas */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  
   /* Animaciones */
   @keyframes fadeIn {
     from { opacity: 0; }
@@ -374,6 +416,41 @@
     animation: fadeIn 0.5s ease-in;
   }
 
-  .titi{
-    color: white;
+.stock-bajo {
+    color: #dc3545;
+    font-weight: 700;
+    background: #f8d7da;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+  }
+  
+  .stock-ok {
+    color: #155724;
+    font-weight: 600;
+  }
+
+/* Caja para nuevo insumo */
+.nuevo-insumo-box {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .nuevo-insumo-box h3 {
+    margin: 0 0 1rem 0;
+    color: #856404;
+    font-size: 1.1rem;
+  }
+  
+  /* Display de costo total */
+  .costo-total-display {
+    background: #e8f5e9;
+    border: 2px solid #2e7d32;
+    color: #1b5e20;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 0.85rem;
+    border-radius: 8px;
   }

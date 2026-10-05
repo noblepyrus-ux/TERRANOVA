@@ -1,0 +1,153 @@
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>🌾 Terranova</h2>
+        <p>Sistema Agrícola</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-link" (click)="irAFincas()">
+          <span class="icon">🏠</span>
+          <span>Fincas</span>
+        </button>
+        <button class="nav-link" (click)="irALotes()">
+          <span class="icon">🗺️</span>
+          <span>Lotes</span>
+        </button>
+        <button class="nav-link" (click)="irACultivos()">
+          <span class="icon">🌱</span>
+          <span>Cultivos</span>
+        </button>
+        <button class="nav-link" (click)="irATareas()">
+          <span class="icon">📋</span>
+          <span>Tareas</span>
+        </button>
+        <button class="nav-link" (click)="irAInsumos()">
+          <span class="icon">📦</span>
+          <span>Insumos</span>
+        </button>
+        <button class="nav-link" (click)="irACompras()">
+          <span class="icon">🛒</span>
+          <span>Compras</span>
+        </button>
+        <button class="nav-link" (click)="irAGastosOperativos()">
+          <span class="icon">💰</span>
+          <span>Gastos Operativos</span>
+        </button>
+        <button class="nav-link" (click)="irACosechas()">
+          <span class="icon">🌾</span>
+          <span>Cosechas</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+      </div>
+    </aside>
+  
+    <!-- Contenido principal -->
+    <main class="main-content">
+      <header class="dashboard-header">
+        <h1>🌾 Gestión de Cosechas</h1>
+        <button class="btn-primary" (click)="openForm()"> Nueva Cosecha</button>
+      </header>
+  
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="message-box error fade-in">
+        <span class="message-icon">❌</span>
+        <span class="message-text">{{ errorMessage }}</span>
+      </div>
+  
+      <!-- Tabla de Cosechas -->
+      <div class="table-container">
+        <table class="data-table" *ngIf="cosechas.length > 0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cultivo</th>
+              <th>Finca</th>
+              <th>Lote</th>
+              <th>Cantidad</th>
+              <th>Unidad</th>
+              <th>Fecha</th>
+              <th>Notas</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let cosecha of cosechas; let i = index" class="fade-in">
+              <td>{{ i + 1 }}</td>
+              <td>{{ cosecha.nombre_cultivo || 'N/A' }}</td>
+              <td>{{ cosecha.nombre_finca || 'N/A' }}</td>
+              <td>{{ cosecha.nombre_lote || 'N/A' }}</td>
+              <td><strong>{{ cosecha.cantidad }}</strong></td>
+              <td>{{ cosecha.unidad || 'N/A' }}</td>
+              <td>{{ formatearFecha(cosecha.fecha) }}</td>
+              <td>{{ cosecha.notas || '-' }}</td>
+              <td class="actions">
+                <button class="btn-edit" (click)="openForm(cosecha)">️✏️ Editar</button>
+                <button class="btn-delete" (click)="deleteCosecha(cosecha.id)">🗑️ Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+  
+        <!-- Estado vacío -->
+        <div *ngIf="cosechas.length === 0" class="empty-state">
+          <p>🌾 No hay cosechas registradas</p>
+          <button class="btn-primary" (click)="openForm()">Registrar tu primera cosecha</button>
+        </div>
+      </div>
+  
+      <!-- Modal/Formulario -->
+      <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h2>{{ editingCosecha ? '✏️ Editar Cosecha' : ' Nueva Cosecha' }}</h2>
+          
+          <form (ngSubmit)="saveCosecha()">
+            <div class="form-group">
+              <label for="cultivo_id">Cultivo *</label>
+              <select id="cultivo_id" [(ngModel)]="cultivo_id" name="cultivo_id" required class="form-select">
+                <option *ngFor="let c of cultivos" [ngValue]="c.id">
+                  {{ c.nombre }} ({{ c.variedad || 'Sin variedad' }}) - Lote: {{ c.lote_id ? 'Asignado' : 'Sin lote' }}
+                </option>
+              </select>
+            </div>
+  
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cantidad">Cantidad *</label>
+                <input type="number" id="cantidad" [(ngModel)]="cantidad" name="cantidad" step="0.01" required>
+              </div>
+  
+              <div class="form-group">
+                <label for="unidad">Unidad *</label>
+                <select id="unidad" [(ngModel)]="unidad" name="unidad" required class="form-select">
+                  <option *ngFor="let u of unidades" [value]="u">{{ u }}</option>
+                </select>
+              </div>
+            </div>
+  
+            <div class="form-group">
+              <label for="fecha">Fecha de cosecha</label>
+              <input type="date" id="fecha" [(ngModel)]="fecha" name="fecha">
+            </div>
+  
+            <div class="form-group">
+              <label for="notas">Notas (opcional)</label>
+              <textarea id="notas" [(ngModel)]="notas" name="notas" rows="3" placeholder="Observaciones sobre la cosecha"></textarea>
+            </div>
+  
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+              <button 
+                type="submit" 
+                class="btn-primary" 
+                [disabled]="!cultivo_id || !cantidad || !unidad">
+                Guardar Cosecha
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>

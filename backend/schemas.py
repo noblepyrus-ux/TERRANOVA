@@ -164,8 +164,9 @@ class CompraResponse(CompraBase):
     model_config = ConfigDict(from_attributes=True)
 
 # ==================== COSECHAS ====================
+
 class CosechaBase(BaseModel):
-    fecha: date
+    fecha: Optional[date] = None
     cantidad: float
     unidad: Optional[str] = None
     notas: Optional[str] = None
@@ -183,6 +184,9 @@ class CosechaUpdate(BaseModel):
 
 class CosechaResponse(CosechaBase):
     id: int
+    nombre_cultivo: Optional[str] = None
+    nombre_lote: Optional[str] = None
+    nombre_finca: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 

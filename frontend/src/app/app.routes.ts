@@ -9,6 +9,7 @@ import { TareasComponent } from './tareas/tareas';
 import { InsumosComponent } from './insumos/insumos';
 import { ComprasComponent } from './compras/compras';
 import { GastosOperativosComponent } from './gastos-operativos/gastos-operativos';
+import { CosechasComponent } from './cosechas/cosechas';
 
 export const routes: Routes = [
   { path: 'lotes/:id', component: LoteDetalleComponent },
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'insumos', component: InsumosComponent },
   { path: 'compras', component: ComprasComponent }, 
   { path: 'gastos-operativos', component: GastosOperativosComponent },
+  { path: 'cosechas', component: CosechasComponent },
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: '**', redirectTo: '/login' }
 ];

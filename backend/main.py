@@ -499,46 +499,130 @@ def delete_compra(compra_id: int, db: Session = Depends(get_db), current_user: m
 # ==================== COSECHAS ====================
 
 @app.get("/cosechas", response_model=list[schemas.CosechaResponse])
-def list_cosechas(db: Session = Depends(get_db)):
-    return db.query(models.Cosecha).all()
+def list_cosechas(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    cosechas = db.query(models.Cosecha).all()
+    resultado = []
+    for cosecha in cosechas:
+        cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == cosecha.cultivo_id).first() if cosecha.cultivo_id else None
+        lote = None
+        finca = None
+        if cultivo:
+            lote = db.query(models.Lote).filter(models.Lote.id == cultivo.lote_id).first() if cultivo.lote_id else None
+            finca = db.query(models.Finca).filter(models.Finca.id == lote.finca_id).first() if lote and lote.finca_id else None
+        
+        resultado.append({
+            "id": cosecha.id,
+            "fecha": cosecha.fecha,
+            "cantidad": cosecha.cantidad,
+            "unidad": cosecha.unidad,
+            "notas": cosecha.notas,
+            "cultivo_id": cosecha.cultivo_id,
+            "nombre_cultivo": cultivo.nombre if cultivo else "N/A",
+            "nombre_lote": lote.nombre if lote else "N/A",
+            "nombre_finca": finca.nombre if finca else "N/A"
+        })
+    return resultado
 
 @app.get("/cosechas/{cosecha_id}", response_model=schemas.CosechaResponse)
-def get_cosecha(cosecha_id: int, db: Session = Depends(get_db)):
+def get_cosecha(cosecha_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     cosecha = db.query(models.Cosecha).filter(models.Cosecha.id == cosecha_id).first()
     if not cosecha:
         raise HTTPException(status_code=404, detail="Cosecha no encontrada")
-    return cosecha
+    
+    cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == cosecha.cultivo_id).first() if cosecha.cultivo_id else None
+    lote = None
+    finca = None
+    if cultivo:
+        lote = db.query(models.Lote).filter(models.Lote.id == cultivo.lote_id).first() if cultivo.lote_id else None
+        finca = db.query(models.Finca).filter(models.Finca.id == lote.finca_id).first() if lote and lote.finca_id else None
+    
+    return {
+        "id": cosecha.id,
+        "fecha": cosecha.fecha,
+        "cantidad": cosecha.cantidad,
+        "unidad": cosecha.unidad,
+        "notas": cosecha.notas,
+        "cultivo_id": cosecha.cultivo_id,
+        "nombre_cultivo": cultivo.nombre if cultivo else "N/A",
+        "nombre_lote": lote.nombre if lote else "N/A",
+        "nombre_finca": finca.nombre if finca else "N/A"
+    }
 
 @app.post("/cosechas", response_model=schemas.CosechaResponse, status_code=201)
-def create_cosecha(cosecha: schemas.CosechaCreate, db: Session = Depends(get_db)):
+def create_cosecha(cosecha: schemas.CosechaCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Verificar que el cultivo existe
     cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == cosecha.cultivo_id).first()
     if not cultivo:
         raise HTTPException(status_code=404, detail="Cultivo no encontrado")
+    
     db_cosecha = models.Cosecha(**cosecha.model_dump())
     db.add(db_cosecha)
     db.commit()
     db.refresh(db_cosecha)
-    return db_cosecha
+    
+    lote = db.query(models.Lote).filter(models.Lote.id == cultivo.lote_id).first() if cultivo.lote_id else None
+    finca = db.query(models.Finca).filter(models.Finca.id == lote.finca_id).first() if lote and lote.finca_id else None
+    
+    return {
+        "id": db_cosecha.id,
+        "fecha": db_cosecha.fecha,
+        "cantidad": db_cosecha.cantidad,
+        "unidad": db_cosecha.unidad,
+        "notas": db_cosecha.notas,
+        "cultivo_id": db_cosecha.cultivo_id,
+        "nombre_cultivo": cultivo.nombre,
+        "nombre_lote": lote.nombre if lote else "N/A",
+        "nombre_finca": finca.nombre if finca else "N/A"
+    }
 
 @app.put("/cosechas/{cosecha_id}", response_model=schemas.CosechaResponse)
-def update_cosecha(cosecha_id: int, cosecha: schemas.CosechaUpdate, db: Session = Depends(get_db)):
+def update_cosecha(cosecha_id: int, cosecha: schemas.CosechaUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_cosecha = db.query(models.Cosecha).filter(models.Cosecha.id == cosecha_id).first()
     if not db_cosecha:
         raise HTTPException(status_code=404, detail="Cosecha no encontrada")
-    for key, value in cosecha.model_dump(exclude_unset=True).items():
+    
+    data = cosecha.model_dump(exclude_unset=True)
+    
+    # Si cambia el cultivo, verificar que existe
+    if "cultivo_id" in data:
+        cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == data["cultivo_id"]).first()
+        if not cultivo:
+            raise HTTPException(status_code=404, detail="Cultivo no encontrado")
+    
+    for key, value in data.items():
         setattr(db_cosecha, key, value)
+    
     db.commit()
     db.refresh(db_cosecha)
-    return db_cosecha
+    
+    cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == db_cosecha.cultivo_id).first() if db_cosecha.cultivo_id else None
+    lote = None
+    finca = None
+    if cultivo:
+        lote = db.query(models.Lote).filter(models.Lote.id == cultivo.lote_id).first() if cultivo.lote_id else None
+        finca = db.query(models.Finca).filter(models.Finca.id == lote.finca_id).first() if lote and lote.finca_id else None
+    
+    return {
+        "id": db_cosecha.id,
+        "fecha": db_cosecha.fecha,
+        "cantidad": db_cosecha.cantidad,
+        "unidad": db_cosecha.unidad,
+        "notas": db_cosecha.notas,
+        "cultivo_id": db_cosecha.cultivo_id,
+        "nombre_cultivo": cultivo.nombre if cultivo else "N/A",
+        "nombre_lote": lote.nombre if lote else "N/A",
+        "nombre_finca": finca.nombre if finca else "N/A"
+    }
 
 @app.delete("/cosechas/{cosecha_id}", status_code=204)
-def delete_cosecha(cosecha_id: int, db: Session = Depends(get_db)):
+def delete_cosecha(cosecha_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_cosecha = db.query(models.Cosecha).filter(models.Cosecha.id == cosecha_id).first()
     if not db_cosecha:
         raise HTTPException(status_code=404, detail="Cosecha no encontrada")
+    
     db.delete(db_cosecha)
     db.commit()
-
+    return None
 
 # ==================== CATEGORIAS ====================
 
