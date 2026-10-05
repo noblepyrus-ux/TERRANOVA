@@ -1,0 +1,196 @@
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2> Terranova</h2>
+      <p>Sistema Agrícola</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-link" (click)="irAFincas()">
+        <span class="icon"></span>
+        <span>Fincas</span>
+      </button>
+      <button class="nav-link" (click)="irALotes()">
+        <span class="icon">🗺️</span>
+        <span>Lotes</span>
+      </button>
+      <button class="nav-link" (click)="irACultivos()">
+        <span class="icon">🌱</span>
+        <span>Cultivos</span>
+      </button>
+      <button class="nav-link" (click)="irATareas()">
+        <span class="icon">📋</span>
+        <span>Tareas</span>
+      </button>
+      <button class="nav-link" (click)="irAInsumos()">
+        <span class="icon">📦</span>
+        <span>Insumos</span>
+      </button>
+      <button class="nav-link" (click)="irACompras()">
+        <span class="icon"></span>
+        <span>Compras</span>
+      </button>
+      <button class="nav-link" (click)="irAGastosOperativos()">
+        <span class="icon"></span>
+        <span>Gastos Operativos</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+    <header class="dashboard-header">
+      <h1>💰 Gastos Operativos</h1>
+      <button class="btn-primary" (click)="openForm()">➕ Nuevo Gasto</button>
+    </header>
+
+    <!-- Mensaje de error -->
+    <div *ngIf="errorMessage" class="message-box error fade-in">
+      <span class="message-icon">❌</span>
+      <span class="message-text">{{ errorMessage }}</span>
+    </div>
+
+    <!-- Tabla de Gastos -->
+    <div class="table-container">
+      <table class="data-table" *ngIf="gastos.length > 0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Concepto</th>
+            <th>Categoría</th>
+            <th>Monto</th>
+            <th>fecha limite</th>
+            <th>Alcance</th>
+            <th>Tarea Vinculada</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let gasto of gastos; let i = index" class="fade-in">
+            <td>{{ i + 1 }}</td>
+            <td>{{ gasto.concepto }}</td>
+            <td>{{ gasto.nombre_categoria || 'N/A' }}</td>
+            <td><strong>{{ formatearPesos(gasto.monto) }}</strong></td>
+            <td>{{ formatearFecha(gasto.fecha_limite) }}</td>
+            <td>{{ getNombreAlcance(gasto) }}</td>
+            <td>{{ gasto.nombre_tarea || 'N/A' }}</td>
+            <td class="actions">
+              <button class="btn-edit" (click)="openForm(gasto)">✏️ Editar</button>
+              <button class="btn-delete" (click)="deleteGasto(gasto.id)">️ Eliminar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Estado vacío -->
+      <div *ngIf="gastos.length === 0" class="empty-state">
+        <p>💰 No hay gastos operativos registrados</p>
+        <button class="btn-primary" (click)="openForm()">Registrar tu primer gasto</button>
+      </div>
+    </div>
+
+    <!-- Modal/Formulario -->
+    <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h2>{{ editingGasto ? '✏️ Editar Gasto Operativo' : '💰 Nuevo Gasto Operativo' }}</h2>
+        
+        <form (ngSubmit)="saveGasto()">
+          <div class="form-group">
+            <label for="concepto">Concepto *</label>
+            <input type="text" id="concepto" [(ngModel)]="concepto" name="concepto" required placeholder="Ej: Pago de jornaleros para siembra">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="monto">Monto ($) *</label>
+              <input type="number" id="monto" [(ngModel)]="monto" name="monto" step="0.01" required>
+            </div>
+
+            <div class="form-group">
+              <label for="fecha_limite">Fecha límite *</label>
+              <input 
+                type="date" 
+                id="fecha_limite" 
+                [(ngModel)]="fecha_limite" 
+                name="fecha_limite" 
+                [min]="manana"
+                required>
+              <small class="help-text">Al menos un día después de hoy</small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="categoria_id">Categoría</label>
+              <select id="categoria_id" [(ngModel)]="categoria_id" name="categoria_id" class="form-select">
+                <option [ngValue]="undefined">Seleccionar...</option>
+                <option *ngFor="let c of categorias" [ngValue]="c.id">{{ c.nombre }}</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="alcance_id">Alcance</label>
+              <select 
+                id="alcance_id" 
+                [ngModel]="alcance_id" 
+                (ngModelChange)="onAlcanceSelected($event)" 
+                name="alcance_id" 
+                class="form-select">
+                <option [ngValue]="undefined">Seleccionar...</option>
+                <option *ngFor="let a of alcances" [ngValue]="a.id">{{ a.tipo }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- SELECT DINÁMICO: Finca -->
+          <div class="form-group" *ngIf="alcance_id === 1">
+            <label for="selected_finca_id">Seleccionar Finca</label>
+            <select id="selected_finca_id" [(ngModel)]="selected_finca_id" name="selected_finca_id" class="form-select">
+              <option [ngValue]="undefined">Todas las fincas</option>
+              <option *ngFor="let f of fincas" [ngValue]="f.id">{{ f.nombre }}</option>
+            </select>
+          </div>
+
+          <!-- SELECT DINÁMICO: Lote -->
+          <div class="form-group" *ngIf="alcance_id === 2">
+            <label for="selected_lote_id">Seleccionar Lote</label>
+            <select id="selected_lote_id" [(ngModel)]="selected_lote_id" name="selected_lote_id" class="form-select">
+              <option [ngValue]="undefined">Todos los lotes</option>
+              <option *ngFor="let l of lotes" [ngValue]="l.id">{{ l.nombre }} ({{ l.area }} ha)</option>
+            </select>
+          </div>
+
+          <!-- SELECT DINÁMICO: Cultivo -->
+          <div class="form-group" *ngIf="alcance_id === 3">
+            <label for="selected_cultivo_id">Seleccionar Cultivo</label>
+            <select id="selected_cultivo_id" [(ngModel)]="selected_cultivo_id" name="selected_cultivo_id" class="form-select">
+              <option [ngValue]="undefined">Todos los cultivos</option>
+              <option *ngFor="let c of cultivos" [ngValue]="c.id">{{ c.nombre }} ({{ c.variedad || 'Sin variedad' }})</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="tarea_id">Vincular a Tarea (opcional)</label>
+            <select id="tarea_id" [(ngModel)]="tarea_id" name="tarea_id" class="form-select">
+              <option [ngValue]="undefined">Sin tarea vinculada</option>
+              <option *ngFor="let t of tareas" [ngValue]="t.id">{{ t.nombre }} ({{ t.tipo || 'Sin tipo' }})</option>
+            </select>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+            <button 
+              type="submit" 
+              class="btn-primary" 
+              [disabled]="!concepto || !monto">
+              Guardar Gasto
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>

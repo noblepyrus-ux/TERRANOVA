@@ -48,6 +48,7 @@ export class InsumosComponent implements OnInit {
   irATareas() { this.router.navigate(['/tareas']); }
   irAInsumos() { this.router.navigate(['/insumos']); }
   irACompras() { this.router.navigate(['/compras']); }
+  irAGastosOperativos() { this.router.navigate(['/gastos-operativos']); }
 
   loadInsumos() {
     this.insumosService.getInsumos().subscribe({

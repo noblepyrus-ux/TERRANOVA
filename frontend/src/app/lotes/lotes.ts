@@ -60,7 +60,7 @@ export class LotesComponent implements OnInit {
   }
 
   irAInsumos() { this.router.navigate(['/insumos']); }
-
+  irAGastosOperativos() { this.router.navigate(['/gastos-operativos']); }
   irACompras() { this.router.navigate(['/compras']); }
 
   loadFincas() {

@@ -12,6 +12,7 @@ from auth import (
     get_current_user, 
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from datetime import date
 
 # Crear las tablas en la base de datos al iniciar
 Base.metadata.create_all(bind=engine)
@@ -584,26 +585,25 @@ def delete_categoria(categoria_id: int, db: Session = Depends(get_db)):
 
 @app.get("/tareas", response_model=list[schemas.TareaResponse])
 def list_tareas(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    from sqlalchemy import or_
+    tareas = db.query(models.Tarea).all()
+    hoy = date.today()
     
-    # Obtener IDs de entidades del usuario
-    lotes_ids = [l.id for l in db.query(models.Lote.id).join(models.Finca).filter(models.Finca.cuenta_id == current_user.id).all()]
-    cultivos_ids = [c.id for c in db.query(models.Cultivo.id).join(models.Lote).join(models.Finca).filter(models.Finca.cuenta_id == current_user.id).all()]
+    actualizado = False
     
-    # Filtrar tareas que pertenezcan a las entidades del usuario o sean generales
-    query = db.query(models.Tarea)
-    filtros = []
-    
-    if lotes_ids:
-        filtros.append(models.Tarea.lote_id.in_(lotes_ids))
-    if cultivos_ids:
-        filtros.append(models.Tarea.cultivo_id.in_(cultivos_ids))
-    # Tareas generales (sin lote ni cultivo)
-    filtros.append((models.Tarea.lote_id == None) & (models.Tarea.cultivo_id == None))
-    
-    tareas = query.filter(or_(*filtros)).all()
+    for tarea in tareas:
+        # Si tiene fecha límite, ya pasó hoy, y no está cerrada (Completada/Cancelada/Vencida)
+        if (tarea.fecha_limite and 
+            tarea.fecha_limite < hoy and 
+            tarea.estado not in ['Completada', 'Cancelada', 'Vencida']):
+            
+            tarea.estado = 'Vencida'
+            actualizado = True
+            
+    # Si hubo cambios, los guardamos en la base de datos
+    if actualizado:
+        db.commit()
+        
     return tareas
-
 @app.get("/tareas/{tarea_id}", response_model=schemas.TareaResponse)
 def get_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     tarea = db.query(models.Tarea).filter(models.Tarea.id == tarea_id).first()
@@ -613,6 +613,15 @@ def get_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models
 
 @app.post("/tareas", response_model=schemas.TareaResponse, status_code=201)
 def create_tarea(tarea: schemas.TareaCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    
+    # Validar que fecha_limite no sea anterior a fecha
+    if tarea.fecha and tarea.fecha_limite:
+        if tarea.fecha_limite < tarea.fecha:
+            raise HTTPException(
+                status_code=400, 
+                detail="La fecha límite no puede ser anterior a la fecha de asignación"
+            )
+    
     # Validar que el alcance existe
     alcance = db.query(models.Alcance).filter(models.Alcance.id == tarea.alcance_id).first()
     if not alcance:
@@ -645,6 +654,14 @@ def update_tarea(tarea_id: int, tarea: schemas.TareaUpdate, db: Session = Depend
     
     data = tarea.model_dump(exclude_unset=True)
     
+    # Validar que fecha_limite no sea anterior a fecha
+    if tarea.fecha and tarea.fecha_limite:
+        if tarea.fecha_limite < tarea.fecha:
+            raise HTTPException(
+                status_code=400, 
+                detail="La fecha límite no puede ser anterior a la fecha de asignación"
+            )
+    
     if "alcance_id" in data:
         alcance = db.query(models.Alcance).filter(models.Alcance.id == data["alcance_id"]).first()
         if not alcance:
@@ -675,31 +692,143 @@ def delete_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: mod
 # ==================== GASTOS OPERATIVOS ====================
 
 @app.get("/gastos-operativos", response_model=list[schemas.GastoOperativoResponse])
-def list_gastos_operativos(db: Session = Depends(get_db)):
-    return db.query(models.GastoOperativo).all()
+def list_gastos_operativos(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    gastos = db.query(models.GastoOperativo).all()
+    resultado = []
+    for gasto in gastos:
+        categoria = db.query(models.Categoria).filter(models.Categoria.id == gasto.categoria_id).first() if gasto.categoria_id else None
+        tarea = db.query(models.Tarea).filter(models.Tarea.id == gasto.tarea_id).first() if gasto.tarea_id else None
+        resultado.append({
+            "id": gasto.id,
+            "concepto": gasto.concepto,
+            "monto": gasto.monto,
+            "fecha": gasto.fecha,
+            "fecha_limite": gasto.fecha_limite,
+            "categoria_id": gasto.categoria_id,
+            "alcance_id": gasto.alcance_id,
+            "finca_id": gasto.finca_id,
+            "lote_id": gasto.lote_id,
+            "cultivo_id": gasto.cultivo_id,
+            "tarea_id": gasto.tarea_id,
+            "nombre_categoria": categoria.nombre if categoria else None,
+            "nombre_tarea": tarea.nombre if tarea else None
+        })
+    return resultado
 
 @app.get("/gastos-operativos/{gasto_id}", response_model=schemas.GastoOperativoResponse)
-def get_gasto_operativo(gasto_id: int, db: Session = Depends(get_db)):
+def get_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     gasto = db.query(models.GastoOperativo).filter(models.GastoOperativo.id == gasto_id).first()
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto operativo no encontrado")
-    return gasto
-
-@app.put("/gastos-operativos/{gasto_id}", response_model=schemas.GastoOperativoResponse)
-def update_gasto_operativo(gasto_id: int, gasto: schemas.GastoOperativoUpdate, db: Session = Depends(get_db)):
-    db_gasto = db.query(models.GastoOperativo).filter(models.GastoOperativo.id == gasto_id).first()
-    if not db_gasto:
-        raise HTTPException(status_code=404, detail="Gasto operativo no encontrado")
-    for key, value in gasto.model_dump(exclude_unset=True).items():
+    
+    data = gasto.model_dump(exclude_unset=True)
+    
+    # 👇 VALIDACIÓN DE FECHAS (va después de obtener el gasto, antes de actualizar)
+    if "fecha" in data or "fecha_limite" in data:
+        fecha_final = data.get("fecha", db_gasto.fecha)
+        fecha_limite_final = data.get("fecha_limite", db_gasto.fecha_limite)
+        if fecha_final and fecha_limite_final:
+            if fecha_limite_final < fecha_final:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="La fecha límite no puede ser anterior a la fecha de asignación"
+                )
+    
+    for key, value in data.items():
         setattr(db_gasto, key, value)
+    
     db.commit()
     db.refresh(db_gasto)
-    return db_gasto
 
-@app.delete("/gastos-operativos/{gasto_id}", status_code=204)
-def delete_gasto_operativo(gasto_id: int, db: Session = Depends(get_db)):
+    categoria = db.query(models.Categoria).filter(models.Categoria.id == gasto.categoria_id).first() if gasto.categoria_id else None
+    tarea = db.query(models.Tarea).filter(models.Tarea.id == gasto.tarea_id).first() if gasto.tarea_id else None
+    return {
+        "id": gasto.id,
+        "concepto": gasto.concepto,
+        "monto": gasto.monto,
+        "fecha": gasto.fecha,
+        "fecha_limite": gasto.fecha_limite,
+        "categoria_id": gasto.categoria_id,
+        "alcance_id": gasto.alcance_id,
+        "finca_id": gasto.finca_id,
+        "lote_id": gasto.lote_id,
+        "cultivo_id": gasto.cultivo_id,
+        "tarea_id": gasto.tarea_id,
+        "nombre_categoria": categoria.nombre if categoria else None,
+        "nombre_tarea": tarea.nombre if tarea else None
+    }
+
+@app.post("/gastos-operativos", response_model=schemas.GastoOperativoResponse, status_code=201)
+def create_gasto_operativo(gasto: schemas.GastoOperativoCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    
+    #  VALIDACIÓN DE FECHAS (va al inicio, antes de cualquier lógica)
+    if gasto.fecha and gasto.fecha_limite:
+        if gasto.fecha_limite < gasto.fecha:
+            raise HTTPException(
+                status_code=400, 
+                detail="La fecha límite no puede ser anterior a la fecha de asignación"
+            )
+    
+    db_gasto = models.GastoOperativo(**gasto.model_dump())
+    db.add(db_gasto)
+    db.commit()
+    db.refresh(db_gasto)
+    
+    categoria = db.query(models.Categoria).filter(models.Categoria.id == gasto.categoria_id).first() if gasto.categoria_id else None
+    tarea = db.query(models.Tarea).filter(models.Tarea.id == gasto.tarea_id).first() if gasto.tarea_id else None
+    
+    return {
+        "id": db_gasto.id,
+        "concepto": db_gasto.concepto,
+        "monto": db_gasto.monto,
+        "fecha": db_gasto.fecha,
+        "categoria_id": db_gasto.categoria_id,
+        "alcance_id": db_gasto.alcance_id,
+        "finca_id": db_gasto.finca_id,
+        "lote_id": db_gasto.lote_id,
+        "cultivo_id": db_gasto.cultivo_id,
+        "tarea_id": db_gasto.tarea_id,
+        "nombre_categoria": categoria.nombre if categoria else None,
+        "nombre_tarea": tarea.nombre if tarea else None
+    }
+
+@app.put("/gastos-operativos/{gasto_id}", response_model=schemas.GastoOperativoResponse)
+def update_gasto_operativo(gasto_id: int, gasto: schemas.GastoOperativoUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_gasto = db.query(models.GastoOperativo).filter(models.GastoOperativo.id == gasto_id).first()
     if not db_gasto:
         raise HTTPException(status_code=404, detail="Gasto operativo no encontrado")
+    
+    data = gasto.model_dump(exclude_unset=True)
+    for key, value in data.items():
+        setattr(db_gasto, key, value)
+    
+    db.commit()
+    db.refresh(db_gasto)
+    
+    categoria = db.query(models.Categoria).filter(models.Categoria.id == db_gasto.categoria_id).first() if db_gasto.categoria_id else None
+    tarea = db.query(models.Tarea).filter(models.Tarea.id == db_gasto.tarea_id).first() if db_gasto.tarea_id else None
+    
+    return {
+        "id": db_gasto.id,
+        "concepto": db_gasto.concepto,
+        "monto": db_gasto.monto,
+        "fecha": db_gasto.fecha,
+        "categoria_id": db_gasto.categoria_id,
+        "alcance_id": db_gasto.alcance_id,
+        "finca_id": db_gasto.finca_id,
+        "lote_id": db_gasto.lote_id,
+        "cultivo_id": db_gasto.cultivo_id,
+        "tarea_id": db_gasto.tarea_id,
+        "nombre_categoria": categoria.nombre if categoria else None,
+        "nombre_tarea": tarea.nombre if tarea else None
+    }
+
+@app.delete("/gastos-operativos/{gasto_id}", status_code=204)
+def delete_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    db_gasto = db.query(models.GastoOperativo).filter(models.GastoOperativo.id == gasto_id).first()
+    if not db_gasto:
+        raise HTTPException(status_code=404, detail="Gasto operativo no encontrado")
+    
     db.delete(db_gasto)
     db.commit()
+    return None

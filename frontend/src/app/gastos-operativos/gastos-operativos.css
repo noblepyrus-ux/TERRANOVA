@@ -416,82 +416,41 @@
     animation: fadeIn 0.5s ease-in;
   }
 
-  /* Información del insumo seleccionado */
-.insumo-info {
-  background: #f0f8ff;
-  border: 1px solid #b3d9ff;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-}
+.stock-bajo {
+    color: #dc3545;
+    font-weight: 700;
+    background: #f8d7da;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+  }
+  
+  .stock-ok {
+    color: #155724;
+    font-weight: 600;
+  }
 
-.insumo-info .info-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.insumo-info .info-row:last-child {
-  margin-bottom: 0;
-}
-
-.insumo-info .info-label {
-  font-weight: 600;
-  color: #555;
-}
-
-.insumo-info .info-value {
-  color: #2e7d32;
-  font-weight: 600;
-}
-
-.help-text {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.85rem;
-  color: #666;
-  font-style: italic;
-}
-
-/* Costo total */
-.costo-total {
-  background: #e8f5e9;
-  border: 2px solid #2e7d32;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.costo-total .costo-label {
-  font-weight: 600;
-  color: #2e7d32;
-  font-size: 1rem;
-}
-
-.costo-total .costo-valor {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1b5e20;
-}
-
-.badge.vencida {
-  background-color: #dc3545; 
-  color: white;
-}
-
-.badge-vencida {
-  background-color: #721c24;
-  color: #f8d7da;
-  border: 1px solid #f5c6cb;
-}
-
-.help-text {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.85rem;
-  color: #666;
-  font-style: italic;
-}
+/* Caja para nuevo insumo */
+.nuevo-insumo-box {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .nuevo-insumo-box h3 {
+    margin: 0 0 1rem 0;
+    color: #856404;
+    font-size: 1.1rem;
+  }
+  
+  /* Display de costo total */
+  .costo-total-display {
+    background: #e8f5e9;
+    border: 2px solid #2e7d32;
+    color: #1b5e20;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 0.85rem;
+    border-radius: 8px;
+  }

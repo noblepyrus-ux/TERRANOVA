@@ -78,3 +78,60 @@ CREATE DATABASE terranova;
 cd backend/scripts
 python add_tareas_columns.py
 ```
+
+### Agregar nuevas categorías para Gastos Operativos
+
+```
+-- Agregar categorías específicas para gastos operativos
+INSERT INTO categorias (id, nombre) VALUES 
+(6, 'Mano de obra'),
+(7, 'Transporte'),
+(8, 'Maquinaria'),
+(9, 'Servicios públicos'),
+(10, 'Mantenimiento'),
+(11, 'Administración')
+ON CONFLICT (id) DO NOTHING;
+```
+
+### Agregar columna fecha_limite a la tabla tareas
+
+```
+-- Agregar campo de fecha límite para tareas
+ALTER TABLE tareas 
+ADD COLUMN IF NOT EXISTS fecha_limite DATE;
+```
+
+### Agregar columna fecha_limite a la tabla gastos_operativos
+
+```
+-- Agregar campo de fecha límite para gastos operativos
+ALTER TABLE gastos_operativos 
+ADD COLUMN IF NOT EXISTS fecha_limite DATE;
+```
+
+### Actualizar registros antiguos de gastos con fecha límite por defecto (opcional)
+
+```
+-- Establecer fecha límite para registros antiguos (30 días después de la fecha original)
+
+UPDATE gastos_operativos 
+SET fecha_limite = fecha + INTERVAL '30 days'
+WHERE fecha_limite IS NULL AND fecha IS NOT NULL;
+
+-- Si no tienen fecha, ponerla como hoy + 7 días
+UPDATE gastos_operativos 
+SET fecha_limite = CURRENT_DATE + INTERVAL '7 days'
+WHERE fecha_limite IS NULL;
+```
+## 🗄️ Migraciones de Base de Datos
+
+### Sesión del 05/10/2026 - Integración de Insumos en Tareas, Compras, Gastos Operativos y Fechas Límite
+
+#### Cambios realizados:
+
+1. **Tabla `categorias`**: Se agregaron nuevas categorías para gastos operativos (IDs 6-11).
+2. **Tabla `tareas`**: Se agregó la columna `fecha_limite` (DATE) para control de vencimiento.
+3. **Tabla `gastos_operativos`**: Se agregó la columna `fecha_limite` (DATE) para control de vencimiento.
+
+#### Scripts SQL ejecutados:
+[pegar los scripts de arriba]

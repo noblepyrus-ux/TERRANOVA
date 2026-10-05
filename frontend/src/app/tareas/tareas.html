@@ -30,6 +30,10 @@
           <span class="icon">🛒</span>
           <span>Compras</span>
         </button>
+        <button class="nav-link" (click)="irAGastosOperativos()">
+          <span class="icon">💰</span>
+          <span>Gastos Operativos</span>
+        </button>
       </nav>
       <div class="sidebar-footer">
         <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
@@ -59,6 +63,7 @@
               <th>Tipo</th>
               <th>Estado</th>
               <th>Fecha</th>
+              <th>Fecha Límite</th>
               <th>Alcance</th>
               <th>Acciones</th>
             </tr>
@@ -74,6 +79,11 @@
                 </span>
               </td>
               <td>{{ tarea.fecha || 'N/A' }}</td>
+              <td>
+                <span [class]="tarea.fecha_limite && tarea.fecha_limite < hoy ? 'badge-vencida' : ''">
+                  {{ tarea.fecha_limite || 'N/A' }}
+                </span>
+              </td>
               <td>{{ getNombreAlcance(tarea) }}</td>
               <td class="actions">
                 <button class="btn-edit" (click)="openForm(tarea)">✏️ Editar</button>
@@ -105,7 +115,6 @@
             <div class="form-group">
               <label for="tipo">Tipo</label>
               <select id="tipo" [(ngModel)]="tipo" name="tipo" class="form-select">
-                <option value="">Seleccionar...</option>
                 <option *ngFor="let t of tipos" [value]="t">{{ t }}</option>
               </select>
             </div>
@@ -113,15 +122,21 @@
             <div class="form-group">
               <label for="estado">Estado</label>
               <select id="estado" [(ngModel)]="estado" name="estado" class="form-select">
-                <option value="">Seleccionar...</option>
                 <option *ngFor="let e of estados" [value]="e">{{ e }}</option>
               </select>
             </div>
           </div>
-
+          
           <div class="form-group">
-            <label for="fecha">Fecha</label>
-            <input type="date" id="fecha" [(ngModel)]="fecha" name="fecha">
+            <label for="fecha_limite">Fecha límite *</label>
+            <input 
+              type="date" 
+              id="fecha_limite" 
+              [(ngModel)]="fecha_limite" 
+              name="fecha_limite" 
+              [min]="manana"
+              required>
+            <small class="help-text">La tarea debe asignarse al menos a un día después de hoy</small>
           </div>
 
           <div class="form-group">

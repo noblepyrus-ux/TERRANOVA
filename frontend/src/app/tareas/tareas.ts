@@ -21,6 +21,8 @@ export class TareasComponent implements OnInit {
   errorMessage = '';
   showForm = false;
   editingTarea: Tarea | null = null;
+  hoy = new Date().toISOString().split('T')[0];
+  manana = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   
   // Listas para los selects
   fincas: Finca[] = [];
@@ -32,6 +34,7 @@ export class TareasComponent implements OnInit {
   nombre = '';
   descripcion = '';
   fecha = '';
+  fecha_limite = '';
   estado = '';
   tipo = '';
   alcance_id: number | undefined = undefined;
@@ -46,7 +49,7 @@ export class TareasComponent implements OnInit {
   cantidad_usada: number | undefined = undefined;
 
   // Opciones
-  estados = ['Pendiente', 'En progreso', 'Completada', 'Cancelada'];
+  estados = ['Pendiente', 'En progreso', 'Completada', 'Cancelada', 'Vencida'];
   tipos = [
     "Preparación de terreno", "Análisis de suelos", "Encalado",
     "Siembra directa", "Transplante", "Resiembra",
@@ -83,6 +86,7 @@ export class TareasComponent implements OnInit {
   irATareas() { this.router.navigate(['/tareas']); }
   irAInsumos() { this.router.navigate(['/insumos']); }
   irACompras() { this.router.navigate(['/compras']); }
+  irAGastosOperativos() { this.router.navigate(['/gastos-operativos']); }
 
   loadSelects() {
     this.fincasService.getFincas().subscribe(f => { this.fincas = f; this.cdr.detectChanges(); });
@@ -151,6 +155,7 @@ export class TareasComponent implements OnInit {
       this.nombre = tarea.nombre;
       this.descripcion = tarea.descripcion || '';
       this.fecha = tarea.fecha || '';
+      this.fecha_limite = tarea.fecha_limite || '';
       this.estado = tarea.estado || '';
       this.tipo = tarea.tipo || '';
       this.alcance_id = tarea.alcance_id;
@@ -169,7 +174,9 @@ export class TareasComponent implements OnInit {
       this.editingTarea = null;
       this.nombre = '';
       this.descripcion = '';
+      this.fecha = this.hoy; 
       this.fecha = '';
+      this.fecha_limite = '';
       this.estado = '';
       this.tipo = '';
       this.alcance_id = undefined;
@@ -190,10 +197,19 @@ export class TareasComponent implements OnInit {
   }
 
   saveTarea() {
+
+    // Validación: fecha límite debe ser al menos mañana
+  if (this.fecha_limite && this.fecha_limite <= this.hoy) {
+    this.errorMessage = 'La fecha límite debe ser al menos un día después de hoy';
+    this.cdr.detectChanges();
+    return;
+  }
+
     const tareaData: Partial<Tarea> = {
       nombre: this.nombre,
       descripcion: this.descripcion || undefined,
       fecha: this.fecha || undefined,
+      fecha_limite: this.fecha_limite || undefined,
       estado: this.estado || undefined,
       tipo: this.tipo || undefined,
       alcance_id: this.alcance_id,

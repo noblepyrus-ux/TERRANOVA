@@ -218,6 +218,7 @@ class TareaBase(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
     fecha: Optional[date] = None
+    fecha_limite: Optional[date] = None 
     estado: Optional[str] = None
     tipo: Optional[TipoTarea] = None
     alcance_id: int
@@ -233,6 +234,7 @@ class TareaUpdate(BaseModel):
     nombre: Optional[str] = None
     descripcion: Optional[str] = None
     fecha: Optional[date] = None
+    fecha_limite: Optional[date] = None  
     estado: Optional[str] = None
     tipo: Optional[TipoTarea] = None
     alcance_id: Optional[int] = None
@@ -247,12 +249,14 @@ class TareaResponse(TareaBase):
 
 
 # ==================== GASTOS OPERATIVOS ====================
+
 class GastoOperativoBase(BaseModel):
     concepto: str
     monto: float
     fecha: Optional[date] = None
-    categoria_id: int
-    alcance_id: int
+    fecha_limite: Optional[date] = None
+    categoria_id: Optional[int] = None
+    alcance_id: Optional[int] = None
     finca_id: Optional[int] = None
     lote_id: Optional[int] = None
     cultivo_id: Optional[int] = None
@@ -265,6 +269,7 @@ class GastoOperativoUpdate(BaseModel):
     concepto: Optional[str] = None
     monto: Optional[float] = None
     fecha: Optional[date] = None
+    fecha_limite: Optional[date] = None  
     categoria_id: Optional[int] = None
     alcance_id: Optional[int] = None
     finca_id: Optional[int] = None
@@ -274,4 +279,6 @@ class GastoOperativoUpdate(BaseModel):
 
 class GastoOperativoResponse(GastoOperativoBase):
     id: int
+    nombre_categoria: Optional[str] = None
+    nombre_tarea: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)

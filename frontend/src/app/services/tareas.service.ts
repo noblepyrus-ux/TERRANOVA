@@ -7,6 +7,7 @@ export interface Tarea {
   nombre: string;
   descripcion?: string;
   fecha?: string;
+  fecha_limite?: string;
   estado?: string;
   tipo?: string;
   alcance_id: number;
