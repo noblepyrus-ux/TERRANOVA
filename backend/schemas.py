@@ -133,17 +133,21 @@ class InsumoResponse(InsumoBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
 # ==================== COMPRAS ====================
+
 class CompraBase(BaseModel):
     cantidad: float
     costo_unitario: float
-    costo_total: float
-    fecha: date
+    costo_total: Optional[float] = None
+    fecha: Optional[date] = None
     proveedor: Optional[str] = None
     nota: Optional[str] = None
     insumo_id: int
 
 class CompraCreate(CompraBase):
-    pass
+    # Campos opcionales para crear insumo nuevo en la misma operación
+    nuevo_insumo_nombre: Optional[str] = None
+    nuevo_insumo_tipo: Optional[str] = None
+    nuevo_insumo_unidad: Optional[str] = None
 
 class CompraUpdate(BaseModel):
     cantidad: Optional[float] = None
@@ -156,8 +160,8 @@ class CompraUpdate(BaseModel):
 
 class CompraResponse(CompraBase):
     id: int
+    nombre_insumo: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
-
 
 # ==================== COSECHAS ====================
 class CosechaBase(BaseModel):

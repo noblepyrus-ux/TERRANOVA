@@ -61,6 +61,8 @@ export class LotesComponent implements OnInit {
 
   irAInsumos() { this.router.navigate(['/insumos']); }
 
+  irACompras() { this.router.navigate(['/compras']); }
+
   loadFincas() {
     this.fincasService.getFincas().subscribe({
       next: (fincas: Finca[]) => {

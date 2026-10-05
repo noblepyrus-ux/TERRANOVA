@@ -1,0 +1,456 @@
+.app-container {
+    display: flex;
+    min-height: 100vh;
+    background: #f5f5f5;
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: linear-gradient(180deg, #1b5e20 0%, #2e7d32 100%);
+    color: white;
+    padding: 2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+  }
+  
+  .sidebar-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: white;
+  }
+  
+  .sidebar-header p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.85rem;
+    opacity: 0.8;
+    color: white;
+  }
+  
+  .sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 0.3s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  
+  .nav-link:hover {
+    background: rgba(255,255,255,0.1);
+  }
+  
+  .nav-link .icon {
+    font-size: 1.3rem;
+  }
+  
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+  }
+  
+  .btn-logout {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.3s ease;
+  }
+  
+  .btn-logout:hover {
+    background: rgba(255,255,255,0.2);
+  }
+  
+  /* Main content */
+  .main-content {
+    flex: 1;
+    margin-left: 260px;
+    padding: 2rem;
+    overflow-y: auto;
+    min-height: 100vh;
+  }
+  
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(46, 125, 50, 0.1);
+  }
+  
+  .dashboard-header h1 {
+    color: #2e7d32;
+    margin: 0;
+    font-size: 2rem;
+  }
+  
+  .btn-primary {
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3);
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+  }
+  
+  .btn-primary:disabled {
+    background: #a5d6a7;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  
+  .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background: white;
+    color: #2e7d32;
+    border: 2px solid #2e7d32;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-secondary:hover {
+    background: #e8f5e9;
+  }
+  
+  /* Tabla */
+  .table-container {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(46, 125, 50, 0.1);
+  }
+  
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .data-table th {
+    background: #f5f5f5;
+    color: #2e7d32;
+    font-weight: 600;
+  }
+  
+  .data-table tr:hover {
+    background: #f9f9f9;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .btn-edit,
+  .btn-delete {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-edit {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .btn-edit:hover {
+    background: #ffeaa7;
+  }
+  
+  .btn-delete {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  .btn-delete:hover {
+    background: #f5c6cb;
+  }
+  
+  /* Estado vacío */
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+  }
+  
+  .empty-state p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  .modal-content {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideInDown 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  .modal-content h2 {
+    color: #2e7d32;
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.85rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+  }
+  
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: #2e7d32;
+  }
+  
+  .form-select {
+    width: 100%;
+    padding: 0.85rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+    transition: border-color 0.3s ease;
+  }
+  
+  .form-select:focus {
+    outline: none;
+    border-color: #2e7d32;
+  }
+  
+  textarea {
+    width: 100%;
+    padding: 0.85rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+  }
+  
+  textarea:focus {
+    outline: none;
+    border-color: #2e7d32;
+  }
+  
+  .modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+  }
+  
+  /* Mensajes */
+  .message-box {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .message-box.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 2px solid #dc3545;
+  }
+  
+  .message-icon {
+    font-size: 1.5rem;
+  }
+  
+  .message-text {
+    font-weight: 600;
+  }
+  
+  /* Badges de estado */
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  
+  .badge.pendiente {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .badge.en-progreso {
+    background: #cce5ff;
+    color: #004085;
+  }
+  
+  .badge.completada {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .badge.cancelada {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  /* Fila de formulario en dos columnas */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  
+  /* Animaciones */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.5s ease-in;
+  }
+
+.stock-bajo {
+    color: #dc3545;
+    font-weight: 700;
+    background: #f8d7da;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+  }
+  
+  .stock-ok {
+    color: #155724;
+    font-weight: 600;
+  }
+
+/* Caja para nuevo insumo */
+.nuevo-insumo-box {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .nuevo-insumo-box h3 {
+    margin: 0 0 1rem 0;
+    color: #856404;
+    font-size: 1.1rem;
+  }
+  
+  /* Display de costo total */
+  .costo-total-display {
+    background: #e8f5e9;
+    border: 2px solid #2e7d32;
+    color: #1b5e20;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 0.85rem;
+    border-radius: 8px;
+  }

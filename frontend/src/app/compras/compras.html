@@ -1,0 +1,186 @@
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>🌾 Terranova</h2>
+        <p>Sistema Agrícola</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-link" (click)="irAFincas()">
+          <span class="icon">🏠</span>
+          <span>Fincas</span>
+        </button>
+        <button class="nav-link" (click)="irALotes()">
+          <span class="icon">🗺️</span>
+          <span>Lotes</span>
+        </button>
+        <button class="nav-link" (click)="irACultivos()">
+          <span class="icon">🌱</span>
+          <span>Cultivos</span>
+        </button>
+        <button class="nav-link" (click)="irATareas()">
+          <span class="icon">📋</span>
+          <span>Tareas</span>
+        </button>
+        <button class="nav-link" (click)="irAInsumos()">
+          <span class="icon">📦</span>
+          <span>Insumos</span>
+        </button>
+        <button class="nav-link" (click)="irACompras()">
+          <span class="icon">🛒</span>
+          <span>Compras</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
+      </div>
+    </aside>
+  
+    <!-- Contenido principal -->
+    <main class="main-content">
+      <header class="dashboard-header">
+        <h1>🛒 Gestión de Compras</h1>
+        <button class="btn-primary" (click)="openForm()">➕ Nueva Compra</button>
+      </header>
+  
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="message-box error fade-in">
+        <span class="message-icon">❌</span>
+        <span class="message-text">{{ errorMessage }}</span>
+      </div>
+  
+      <!-- Tabla de Compras -->
+      <div class="table-container">
+        <table class="data-table" *ngIf="compras.length > 0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Cantidad</th>
+              <th>Costo Unit.</th>
+              <th>Costo Total</th>
+              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let compra of compras; let i = index" class="fade-in">
+              <td>{{ i + 1 }}</td>
+              <td>{{ compra.nombre_insumo || 'N/A' }}</td>
+              <td>{{ compra.cantidad }}</td>
+              <td>{{ formatearPesos(compra.costo_unitario) }}</td>
+              <td><strong>{{ formatearPesos(compra.costo_total) }}</strong></td>
+              <td>{{ formatearFecha(compra.fecha) }}</td>
+              <td>{{ compra.proveedor || 'N/A' }}</td>
+              <td class="actions">
+                <button class="btn-edit" (click)="openForm(compra)">✏️ Editar</button>
+                <button class="btn-delete" (click)="deleteCompra(compra.id)">🗑️ Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+  
+        <!-- Estado vacío -->
+        <div *ngIf="compras.length === 0" class="empty-state">
+          <p> No hay compras registradas</p>
+          <button class="btn-primary" (click)="openForm()">Registrar tu primera compra</button>
+        </div>
+      </div>
+  
+      <!-- Modal/Formulario -->
+      <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h2>{{ editingCompra ? '✏️ Editar Compra' : '🛒 Nueva Compra' }}</h2>
+          
+          <form (ngSubmit)="saveCompra()">
+            <!-- Selector de producto con opción de crear nuevo -->
+            <div class="form-group">
+              <label for="insumo_id">Producto *</label>
+              <select 
+                id="insumo_id" 
+                [ngModel]="insumo_id" 
+                (ngModelChange)="onInsumoChange($event)" 
+                name="insumo_id" 
+                required 
+                class="form-select">
+                <option *ngFor="let ins of insumos" [ngValue]="ins.id">
+                  {{ ins.nombre }} (Stock: {{ ins.stock_actual }} {{ ins.unidad }})
+                </option>
+                <option [ngValue]="-1">➕ Registrar nuevo producto</option>
+              </select>
+            </div>
+  
+            <!-- Campos para nuevo insumo (aparecen solo si se selecciona "nuevo") -->
+            <div *ngIf="es_nuevo_insumo" class="nuevo-insumo-box">
+              <h3>📦 Datos del nuevo producto</h3>
+              <div class="form-group">
+                <label for="nuevo_insumo_nombre">Nombre del producto *</label>
+                <input type="text" id="nuevo_insumo_nombre" [(ngModel)]="nuevo_insumo_nombre" name="nuevo_insumo_nombre" required>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="nuevo_insumo_tipo">Tipo</label>
+                  <select id="nuevo_insumo_tipo" [(ngModel)]="nuevo_insumo_tipo" name="nuevo_insumo_tipo" class="form-select">
+                    <option value="">Seleccionar...</option>
+                    <option *ngFor="let t of tipos_insumo" [value]="t">{{ t }}</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="nuevo_insumo_unidad">Unidad</label>
+                  <select id="nuevo_insumo_unidad" [(ngModel)]="nuevo_insumo_unidad" name="nuevo_insumo_unidad" class="form-select">
+                    <option value="">Seleccionar...</option>
+                    <option *ngFor="let u of unidades" [value]="u">{{ u }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+  
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cantidad">Cantidad *</label>
+                <input type="number" id="cantidad" [(ngModel)]="cantidad" name="cantidad" (input)="calcularCostoTotal()" step="0.01" required>
+              </div>
+  
+              <div class="form-group">
+                <label for="costo_unitario">Costo Unitario ($) *</label>
+                <input type="number" id="costo_unitario" [(ngModel)]="costo_unitario" name="costo_unitario" (input)="calcularCostoTotal()" step="0.01" required>
+              </div>
+            </div>
+  
+            <div class="form-group">
+              <label for="costo_total">Costo Total ($)</label>
+              <input type="text" [value]="formatearPesos(costo_total)" class="form-control costo-total-display" readonly>
+            </div>
+  
+            <div class="form-row">
+              <div class="form-group">
+                <label for="fecha">Fecha</label>
+                <input type="date" id="fecha" [(ngModel)]="fecha" name="fecha">
+              </div>
+  
+              <div class="form-group">
+                <label for="proveedor">Proveedor</label>
+                <input type="text" id="proveedor" [(ngModel)]="proveedor" name="proveedor" placeholder="Nombre del proveedor">
+              </div>
+            </div>
+  
+            <div class="form-group">
+              <label for="nota">Nota (opcional)</label>
+              <textarea id="nota" [(ngModel)]="nota" name="nota" rows="2" placeholder="Observaciones sobre la compra"></textarea>
+            </div>
+  
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" (click)="closeForm()">Cancelar</button>
+              <button 
+                type="submit" 
+                class="btn-primary" 
+                [disabled]="!cantidad || !costo_unitario || (!es_nuevo_insumo && !insumo_id) || (es_nuevo_insumo && !nuevo_insumo_nombre)">
+                Guardar Compra
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>

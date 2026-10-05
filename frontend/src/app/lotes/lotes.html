@@ -28,6 +28,10 @@
             <span class="icon">📦</span>
             <span>Insumos</span>
           </button>
+          <button class="nav-link" (click)="irACompras()">
+            <span class="icon">🛒</span>
+            <span>Compras</span>
+          </button>
         </nav>
         <div class="sidebar-footer">
           <button class="btn-logout" (click)="logout()">🚪 Cerrar Sesión</button>
@@ -70,7 +74,7 @@
               <td>{{ lote.tipo_suelo || 'N/A' }}</td>
               <td>{{ getNombreFinca(lote.finca_id) }}</td>
               <td class="actions">
-                <button class="btn-view" (click)="verDetalle(lote.id)">️ Ver</button>
+                <button class="btn-view" (click)="verDetalle(lote.id)">️👁️ Ver</button>
                 <button class="btn-edit" (click)="openForm(lote)">✏️ Editar</button>
                 <button class="btn-delete" (click)="deleteLote(lote.id)">🗑️ Eliminar</button>
               </td>

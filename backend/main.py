@@ -143,8 +143,6 @@ def delete_finca(finca_id: int, db: Session = Depends(get_db), current_user: mod
     db.commit()
 
 
-# ==================== LOTES ====================
-
 # ==================== LOTES (Con seguridad multi-usuario) ====================
 
 @app.get("/lotes", response_model=list[schemas.LoteResponse])
@@ -341,59 +339,161 @@ def delete_insumo(insumo_id: int, db: Session = Depends(get_db), current_user: m
     db.delete(db_insumo)
     db.commit()
     return None
-# ==================== COMPRAS ====================
+# ====# ==================== COMPRAS (Con seguridad multi-usuario) ====================
 
 @app.get("/compras", response_model=list[schemas.CompraResponse])
-def list_compras(db: Session = Depends(get_db)):
-    return db.query(models.Compra).all()
+def list_compras(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    compras = db.query(models.Compra).all()
+    resultado = []
+    for compra in compras:
+        insumo = db.query(models.Insumo).filter(models.Insumo.id == compra.insumo_id).first()
+        compra_dict = {
+            "id": compra.id,
+            "cantidad": compra.cantidad,
+            "costo_unitario": compra.costo_unitario,
+            "costo_total": compra.costo_total,
+            "fecha": compra.fecha,
+            "proveedor": compra.proveedor,
+            "nota": compra.nota,
+            "insumo_id": compra.insumo_id,
+            "nombre_insumo": insumo.nombre if insumo else "N/A"
+        }
+        resultado.append(compra_dict)
+    return resultado
 
 @app.get("/compras/{compra_id}", response_model=schemas.CompraResponse)
-def get_compra(compra_id: int, db: Session = Depends(get_db)):
+def get_compra(compra_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     compra = db.query(models.Compra).filter(models.Compra.id == compra_id).first()
     if not compra:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
-    return compra
+    insumo = db.query(models.Insumo).filter(models.Insumo.id == compra.insumo_id).first()
+    return {
+        "id": compra.id,
+        "cantidad": compra.cantidad,
+        "costo_unitario": compra.costo_unitario,
+        "costo_total": compra.costo_total,
+        "fecha": compra.fecha,
+        "proveedor": compra.proveedor,
+        "nota": compra.nota,
+        "insumo_id": compra.insumo_id,
+        "nombre_insumo": insumo.nombre if insumo else "N/A"
+    }
 
 @app.post("/compras", response_model=schemas.CompraResponse, status_code=201)
-def create_compra(compra: schemas.CompraCreate, db: Session = Depends(get_db)):
-    insumo = db.query(models.Insumo).filter(models.Insumo.id == compra.insumo_id).first()
-    if not insumo:
-        raise HTTPException(status_code=404, detail="Insumo no encontrado")
+def create_compra(compra: schemas.CompraCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    insumo_id = compra.insumo_id
     
-    db_compra = models.Compra(**compra.model_dump())
+    # Si es un insumo nuevo (ID = -1 o negativo), crearlo primero
+    if insumo_id == -1 or insumo_id < 0:
+        if not compra.nuevo_insumo_nombre:
+            raise HTTPException(status_code=400, detail="Debe proporcionar el nombre del nuevo insumo")
+        
+        nuevo_insumo = models.Insumo(
+            nombre=compra.nuevo_insumo_nombre,
+            tipo=compra.nuevo_insumo_tipo or "Otro",
+            unidad=compra.nuevo_insumo_unidad or "unidades",
+            stock_actual=0,
+            costo_promedio=compra.costo_unitario
+        )
+        db.add(nuevo_insumo)
+        db.commit()
+        db.refresh(nuevo_insumo)
+        insumo_id = nuevo_insumo.id
+    else:
+        # Verificar que el insumo existe
+        insumo = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
+        if not insumo:
+            raise HTTPException(status_code=404, detail="Insumo no encontrado")
+    
+    # Calcular costo total si no se proporciona
+    costo_total = compra.costo_total if compra.costo_total is not None else (compra.cantidad * compra.costo_unitario)
+    
+    # Crear la compra
+    db_compra = models.Compra(
+        cantidad=compra.cantidad,
+        costo_unitario=compra.costo_unitario,
+        costo_total=costo_total,
+        fecha=compra.fecha,
+        proveedor=compra.proveedor,
+        nota=compra.nota,
+        insumo_id=insumo_id
+    )
     db.add(db_compra)
     
-    # Actualizar stock y costo promedio del insumo
-    stock_actual = insumo.stock_actual or 0
-    costo_actual = insumo.costo_promedio or 0
-    nuevo_promedio = ((stock_actual * costo_actual) + (compra.cantidad * compra.costo_unitario)) / (stock_actual + compra.cantidad)
-    
-    insumo.stock_actual = stock_actual + compra.cantidad
-    insumo.costo_promedio = nuevo_promedio
+    # Actualizar stock del insumo (sumar la cantidad comprada)
+    insumo = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
+    if insumo:
+        insumo.stock_actual = (insumo.stock_actual or 0) + compra.cantidad
+        # Actualizar costo promedio ponderado
+        stock_anterior = insumo.stock_actual - compra.cantidad
+        if stock_anterior > 0:
+            costo_anterior_total = insumo.costo_promedio * stock_anterior
+            insumo.costo_promedio = (costo_anterior_total + costo_total) / insumo.stock_actual
+        else:
+            insumo.costo_promedio = compra.costo_unitario
     
     db.commit()
     db.refresh(db_compra)
-    return db_compra
+    
+    insumo_final = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
+    return {
+        "id": db_compra.id,
+        "cantidad": db_compra.cantidad,
+        "costo_unitario": db_compra.costo_unitario,
+        "costo_total": db_compra.costo_total,
+        "fecha": db_compra.fecha,
+        "proveedor": db_compra.proveedor,
+        "nota": db_compra.nota,
+        "insumo_id": db_compra.insumo_id,
+        "nombre_insumo": insumo_final.nombre if insumo_final else "N/A"
+    }
 
 @app.put("/compras/{compra_id}", response_model=schemas.CompraResponse)
-def update_compra(compra_id: int, compra: schemas.CompraUpdate, db: Session = Depends(get_db)):
+def update_compra(compra_id: int, compra: schemas.CompraUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_compra = db.query(models.Compra).filter(models.Compra.id == compra_id).first()
     if not db_compra:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
-    for key, value in compra.model_dump(exclude_unset=True).items():
+    
+    data = compra.model_dump(exclude_unset=True)
+    
+    # Si cambia el insumo, verificar que existe
+    if "insumo_id" in data:
+        insumo = db.query(models.Insumo).filter(models.Insumo.id == data["insumo_id"]).first()
+        if not insumo:
+            raise HTTPException(status_code=404, detail="Insumo no encontrado")
+    
+    for key, value in data.items():
         setattr(db_compra, key, value)
+    
+    # Recalcular costo total si cambiaron cantidad o costo_unitario
+    if "cantidad" in data or "costo_unitario" in data:
+        db_compra.costo_total = db_compra.cantidad * db_compra.costo_unitario
+    
     db.commit()
     db.refresh(db_compra)
-    return db_compra
+    
+    insumo = db.query(models.Insumo).filter(models.Insumo.id == db_compra.insumo_id).first()
+    return {
+        "id": db_compra.id,
+        "cantidad": db_compra.cantidad,
+        "costo_unitario": db_compra.costo_unitario,
+        "costo_total": db_compra.costo_total,
+        "fecha": db_compra.fecha,
+        "proveedor": db_compra.proveedor,
+        "nota": db_compra.nota,
+        "insumo_id": db_compra.insumo_id,
+        "nombre_insumo": insumo.nombre if insumo else "N/A"
+    }
 
 @app.delete("/compras/{compra_id}", status_code=204)
-def delete_compra(compra_id: int, db: Session = Depends(get_db)):
+def delete_compra(compra_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     db_compra = db.query(models.Compra).filter(models.Compra.id == compra_id).first()
     if not db_compra:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
+    
     db.delete(db_compra)
     db.commit()
-
+    return None
 
 # ==================== COSECHAS ====================
 

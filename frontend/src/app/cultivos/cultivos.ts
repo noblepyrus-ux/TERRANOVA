@@ -59,6 +59,8 @@ export class CultivosComponent implements OnInit {
 
   irAInsumos() { this.router.navigate(['/insumos']); }
 
+  irACompras() { this.router.navigate(['/compras']); }
+
   loadLotes() {
     this.lotesService.getLotes().subscribe({
       next: (lotes: Lote[]) => {
