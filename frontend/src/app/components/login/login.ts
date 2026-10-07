@@ -7,7 +7,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './login.html',
   styleUrls: ['./login.css']
 })
@@ -22,7 +22,8 @@ export class LoginComponent {
     private cdr: ChangeDetectorRef
   ) {}
 
-  onLogin() {
+  // 👈 1. CAMBIADO DE onLogin A onSubmit PARA QUE COINCIDA CON EL HTML
+  onSubmit() {
     this.errorMessage = '';
     console.log('🔐 Intentando login con usuario:', this.usuario);
 
@@ -35,8 +36,10 @@ export class LoginComponent {
         console.log('🔍 Token en localStorage después del login:', tokenGuardado);
         
         if (tokenGuardado) {
-          console.log('🚀 Redirigiendo a /fincas...');
-          this.router.navigate(['/fincas']).then(
+          console.log('🚀 Redirigiendo a /dashboard...');
+          
+          // 👈 2. CAMBIADO DE /fincas A /dashboard
+          this.router.navigate(['/dashboard']).then(
             (navego) => console.log('🎯 Navegación exitosa:', navego),
             (err) => console.error('❌ Error en navegación:', err)
           );

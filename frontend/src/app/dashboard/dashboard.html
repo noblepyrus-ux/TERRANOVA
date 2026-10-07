@@ -1,0 +1,206 @@
+<div class="app-container" style="display: flex; min-height: 100vh; background: #f5f7f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>🌾 Terranova</h2> 
+        <p>Sistema Agrícola</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-link" (click)="irADashboard()">
+          <span class="icon">📈</span>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-link" (click)="irAFincas()">
+          <span class="icon">🏠</span>
+          <span>Fincas</span>
+        </button>
+        <button class="nav-link" (click)="irALotes()">
+          <span class="icon">🗺️</span>
+          <span>Lotes</span>
+        </button>
+        <button class="nav-link" (click)="irACultivos()">
+          <span class="icon">🌱</span>
+          <span>Cultivos</span>
+        </button>
+        <button class="nav-link" (click)="irATareas()">
+          <span class="icon">📋</span>
+          <span>Tareas</span>
+        </button>
+        <button class="nav-link" (click)="irAInsumos()">
+          <span class="icon">📦</span>
+          <span>Insumos</span>
+        </button>
+        <button class="nav-link" (click)="irACompras()">
+          <span class="icon">🛒</span>
+          <span>Compras</span>
+        </button>
+        <button class="nav-link" (click)="irAGastosOperativos()">
+          <span class="icon">💰</span>
+          <span>Gastos Operativos</span>
+        </button>
+        <button class="nav-link" (click)="irACosechas()">
+          <span class="icon">🧺</span>
+          <span>Cosechas</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" (click)="logout()"> Cerrar Sesión</button>
+      </div>
+    </aside>
+  
+    <!-- Contenido principal -->
+    <main class="main-content" style="margin-left: 250px; flex: 1; padding: 2rem;">
+      <header class="dashboard-header" style="margin-bottom: 2rem;">
+        <h1 style="margin: 0; color: #1b5e20; font-size: 2rem; display: flex; align-items: center; gap: 0.75rem;">📊 Panel de Control</h1>
+        <p class="subtitle" style="color: #666; font-size: 1rem; margin: 0.25rem 0 0;">Resumen general de tu operación agrícola</p>
+      </header>
+  
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="message-box error fade-in" style="padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; background: #fdecea; border: 1px solid #f5c6cb; color: #721c24;">
+        <span class="message-icon">❌</span>
+        <span class="message-text">{{ errorMessage }}</span>
+      </div>
+  
+      <!-- Tarjetas KPI -->
+      <div class="kpi-grid" *ngIf="dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+        
+        <div class="kpi-card" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #4CAF50;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #e8f5e9;">🏠</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ dashboard.kpis.total_fincas }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Fincas</p>
+          </div>
+        </div>
+  
+        <div class="kpi-card" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #2196F3;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #e3f2fd;">🗺️</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ dashboard.kpis.total_lotes }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Lotes</p>
+          </div>
+        </div>
+  
+        <div class="kpi-card" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #8BC34A;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #f1f8e9;">🌱</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ dashboard.kpis.total_cultivos }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Cultivos</p>
+          </div>
+        </div>
+  
+        <div class="kpi-card" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #FF9800;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #fff3e0;">📋</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ dashboard.kpis.tareas_pendientes }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Tareas Pendientes</p>
+          </div>
+        </div>
+  
+        <div class="kpi-card" [class.alert]="dashboard.kpis.tareas_vencidas > 0" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #f44336;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #ffebee;">⚠️</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ dashboard.kpis.tareas_vencidas }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Tareas Vencidas</p>
+          </div>
+        </div>
+  
+        <div class="kpi-card" [class.alert]="dashboard.kpis.insumos_stock_bajo > 0" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #9C27B0;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #f3e5f5;">📦</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ dashboard.kpis.insumos_stock_bajo }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Insumos Stock Bajo</p>
+          </div>
+        </div>
+  
+        <div class="kpi-card" style="background: white; border-radius: 16px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #607D8B;">
+          <div class="kpi-icon" style="font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #eceff1;">💸</div>
+          <div class="kpi-info">
+            <h3 style="margin: 0; font-size: 1.8rem; color: #1b5e20; font-weight: 700;">{{ formatearPesos(dashboard.kpis.total_invertido) }}</h3>
+            <p style="margin: 0.25rem 0 0; color: #666; font-size: 0.9rem; font-weight: 500;">Total Invertido</p>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Gráficos -->
+      <div class="charts-grid" *ngIf="dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="chart-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+          <h3 style="margin: 0 0 1rem 0; color: #1b5e20; font-size: 1.2rem; font-weight: 600;">💰 Gastos por Categoría</h3>
+          <div class="chart-container" style="position: relative; height: 350px; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+            <canvas #gastosChart></canvas>
+            <p *ngIf="!dashboard.gastos_por_categoria.length" style="text-align: center; color: #999; font-style: italic;">Sin datos de gastos aún</p>
+          </div>
+        </div>
+  
+        <div class="chart-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+          <h3 style="margin: 0 0 1rem 0; color: #1b5e20; font-size: 1.2rem; font-weight: 600;">🌾 Cosechas por Cultivo</h3>
+          <div class="chart-container" style="position: relative; height: 350px; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+            <canvas #cosechasChart></canvas>
+            <p *ngIf="!dashboard.cosechas_por_cultivo.length" style="text-align: center; color: #999; font-style: italic;">Sin datos de cosechas aún</p>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Listas rápidas -->
+      <div class="lists-grid" *ngIf="dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        
+        <!-- Tareas pendientes -->
+        <div class="list-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+          <h3 style="margin: 0 0 1rem 0; color: #1b5e20; font-size: 1.2rem; font-weight: 600;">📋 Tareas Pendientes</h3>
+          <div class="list-content" style="max-height: 320px; overflow-y: auto;">
+            <div *ngIf="dashboard.ultimas_tareas.length === 0" style="text-align: center; color: #999; padding: 2rem 0; font-style: italic;">
+              No hay tareas pendientes 🎉
+            </div>
+            <div *ngFor="let tarea of dashboard.ultimas_tareas" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem; border-bottom: 1px solid #f0f0f0;">
+              <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <strong style="color: #333; font-size: 0.95rem;">{{ tarea.nombre }}</strong>
+                <span style="font-size: 0.85rem; color: #888;">{{ tarea.tipo || 'Sin tipo' }}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+                <span style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: #e8f5e9; color: #2e7d32;">{{ tarea.estado }}</span>
+                <small *ngIf="tarea.fecha_limite" style="color: #666;">Vence: {{ formatearFecha(tarea.fecha_limite) }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Insumos con stock bajo -->
+        <div class="list-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+          <h3 style="margin: 0 0 1rem 0; color: #1b5e20; font-size: 1.2rem; font-weight: 600;">📦 Insumos con Stock Bajo</h3>
+          <div class="list-content" style="max-height: 320px; overflow-y: auto;">
+            <div *ngIf="dashboard.insumos_stock_bajo.length === 0" style="text-align: center; color: #999; padding: 2rem 0; font-style: italic;">
+              Todos los insumos tienen stock suficiente ✅
+            </div>
+            <div *ngFor="let insumo of dashboard.insumos_stock_bajo" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem; border-bottom: 1px solid #f0f0f0; background: #fff5f5; border-left: 3px solid #f44336; border-radius: 4px; margin-bottom: 0.5rem;">
+              <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <strong style="color: #333; font-size: 0.95rem;">{{ insumo.nombre }}</strong>
+                <span style="font-size: 0.85rem; color: #888;">Stock: {{ insumo.stock_actual }} {{ insumo.unidad }}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+                <span style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: #ffebee; color: #c62828;">Bajo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Últimas cosechas -->
+        <div class="list-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+          <h3 style="margin: 0 0 1rem 0; color: #1b5e20; font-size: 1.2rem; font-weight: 600;">🌾 Últimas Cosechas</h3>
+          <div class="list-content" style="max-height: 320px; overflow-y: auto;">
+            <div *ngIf="dashboard.ultimas_cosechas.length === 0" style="text-align: center; color: #999; padding: 2rem 0; font-style: italic;">
+              Aún no hay cosechas registradas
+            </div>
+            <div *ngFor="let cosecha of dashboard.ultimas_cosechas" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem; border-bottom: 1px solid #f0f0f0;">
+              <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <strong style="color: #333; font-size: 0.95rem;">{{ cosecha.cultivo }}</strong>
+                <span style="font-size: 0.85rem; color: #888;">{{ cosecha.cantidad }} {{ cosecha.unidad }}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+                <small style="color: #666;">{{ formatearFecha(cosecha.fecha) }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>

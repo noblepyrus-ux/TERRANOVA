@@ -63,6 +63,7 @@ export class LotesComponent implements OnInit {
   irAGastosOperativos() { this.router.navigate(['/gastos-operativos']); }
   irACompras() { this.router.navigate(['/compras']); }
   irACosechas() { this.router.navigate(['/cosechas']); }
+  irADashboard() { this.router.navigate(['/dashboard']); }
 
   loadFincas() {
     this.fincasService.getFincas().subscribe({

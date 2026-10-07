@@ -88,6 +88,7 @@ export class TareasComponent implements OnInit {
   irACompras() { this.router.navigate(['/compras']); }
   irAGastosOperativos() { this.router.navigate(['/gastos-operativos']); }
   irACosechas() { this.router.navigate(['/cosechas']); }
+  irADashboard() { this.router.navigate(['/dashboard']); }
 
   loadSelects() {
     this.fincasService.getFincas().subscribe(f => { this.fincas = f; this.cdr.detectChanges(); });

@@ -13,6 +13,7 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from datetime import date
+from sqlalchemy import func
 
 # Crear las tablas en la base de datos al iniciar
 Base.metadata.create_all(bind=engine)
@@ -916,3 +917,112 @@ def delete_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current
     db.delete(db_gasto)
     db.commit()
     return None
+
+# ==================== DASHBOARD ====================
+
+@app.get("/dashboard")
+def get_dashboard(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+    # Conteos básicos
+    total_fincas = db.query(models.Finca).count()
+    total_lotes = db.query(models.Lote).count()
+    total_cultivos = db.query(models.Cultivo).count()
+    
+    # Tareas
+    tareas_pendientes = db.query(models.Tarea).filter(
+        models.Tarea.estado.in_(['Pendiente', 'En progreso'])
+    ).count()
+    
+    tareas_vencidas = db.query(models.Tarea).filter(
+        models.Tarea.estado == 'Vencida'
+    ).count()
+    
+    # Últimas tareas pendientes (para mostrar en lista)
+    ultimas_tareas = db.query(models.Tarea).filter(
+        models.Tarea.estado.in_(['Pendiente', 'En progreso'])
+    ).order_by(models.Tarea.fecha.desc()).limit(5).all()
+    
+    tareas_lista = []
+    for t in ultimas_tareas:
+        tareas_lista.append({
+            "id": t.id,
+            "nombre": t.nombre,
+            "estado": t.estado,
+            "fecha_limite": str(t.fecha_limite) if t.fecha_limite else None,
+            "tipo": t.tipo
+        })
+    
+    # Insumos con stock bajo (menos de 10 unidades)
+    insumos_stock_bajo = db.query(models.Insumo).filter(
+        models.Insumo.stock_actual < 10
+    ).order_by(models.Insumo.stock_actual.asc()).limit(5).all()
+    
+    insumos_lista = []
+    for i in insumos_stock_bajo:
+        insumos_lista.append({
+            "id": i.id,
+            "nombre": i.nombre,
+            "stock_actual": i.stock_actual,
+            "unidad": i.unidad
+        })
+    
+    # Últimas cosechas
+    ultimas_cosechas = db.query(models.Cosecha).order_by(
+        models.Cosecha.fecha.desc()
+    ).limit(5).all()
+    
+    cosechas_lista = []
+    for c in ultimas_cosechas:
+        cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == c.cultivo_id).first()
+        cosechas_lista.append({
+            "id": c.id,
+            "cultivo": cultivo.nombre if cultivo else "N/A",
+            "cantidad": c.cantidad,
+            "unidad": c.unidad,
+            "fecha": str(c.fecha) if c.fecha else None
+        })
+    
+    # Gastos por categoría (para gráfico)
+    gastos_por_categoria = db.query(
+        models.Categoria.nombre,
+        func.sum(models.GastoOperativo.monto).label('total')
+    ).join(
+        models.GastoOperativo, models.Categoria.id == models.GastoOperativo.categoria_id
+    ).group_by(
+        models.Categoria.nombre
+    ).all()
+    
+    gastos_chart = [{"categoria": g.nombre, "total": float(g.total)} for g in gastos_por_categoria]
+    
+    # Cosechas por cultivo (para gráfico)
+    cosechas_por_cultivo = db.query(
+        models.Cultivo.nombre,
+        func.sum(models.Cosecha.cantidad).label('total')
+    ).join(
+        models.Cosecha, models.Cultivo.id == models.Cosecha.cultivo_id
+    ).group_by(
+        models.Cultivo.nombre
+    ).all()
+    
+    cosechas_chart = [{"cultivo": c.nombre, "total": float(c.total)} for c in cosechas_por_cultivo]
+    
+    # Total invertido (compras + gastos operativos)
+    total_compras = db.query(func.sum(models.Compra.costo_total)).scalar() or 0
+    total_gastos = db.query(func.sum(models.GastoOperativo.monto)).scalar() or 0
+    total_invertido = float(total_compras) + float(total_gastos)
+    
+    return {
+        "kpis": {
+            "total_fincas": total_fincas,
+            "total_lotes": total_lotes,
+            "total_cultivos": total_cultivos,
+            "tareas_pendientes": tareas_pendientes,
+            "tareas_vencidas": tareas_vencidas,
+            "insumos_stock_bajo": len(insumos_stock_bajo),
+            "total_invertido": total_invertido
+        },
+        "ultimas_tareas": tareas_lista,
+        "insumos_stock_bajo": insumos_lista,
+        "ultimas_cosechas": cosechas_lista,
+        "gastos_por_categoria": gastos_chart,
+        "cosechas_por_cultivo": cosechas_chart
+    }

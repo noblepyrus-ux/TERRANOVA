@@ -61,6 +61,7 @@ export class CultivosComponent implements OnInit {
   irACompras() { this.router.navigate(['/compras']); }
   irAGastosOperativos() { this.router.navigate(['/gastos-operativos']); }
   irACosechas() { this.router.navigate(['/cosechas']); }
+  irADashboard() { this.router.navigate(['/dashboard']); }
 
   loadLotes() {
     this.lotesService.getLotes().subscribe({
