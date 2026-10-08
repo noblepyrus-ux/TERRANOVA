@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { LoginRequest, RegisterRequest, TokenResponse } from '../models/auth.models';
+import { jwtDecode } from 'jwt-decode'; 
 
 @Injectable({
   providedIn: 'root'
@@ -49,4 +50,22 @@ export class AuthService {
   isLoggedIn(): boolean {
     return !!this.getToken();
   }
+
+  // Asegúrate de tener esta importación
+
+// ... dentro de la clase AuthService ...
+
+  esAdmin(): boolean {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    
+    try {
+      const decoded: any = jwtDecode(token);
+      // Verifica si el rol en el token es 'admin'
+      return decoded.rol === 'admin'; 
+    } catch (error) {
+      return false;
+    }
+  }
+
 }

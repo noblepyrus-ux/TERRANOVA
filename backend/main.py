@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import models
+from fastapi.security import OAuth2PasswordRequestForm
 import schemas
 from database import Base, engine, get_db
 from auth import (
@@ -10,7 +11,8 @@ from auth import (
     create_access_token, 
     authenticate_user, 
     get_current_user, 
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    require_admin
 )
 from datetime import date
 from sqlalchemy import func
@@ -65,7 +67,28 @@ def login_for_access_token(cuenta_data: schemas.CuentaCreate, db: Session = Depe
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": cuenta.usuario}, expires_delta=access_token_expires
+        data={"sub": cuenta.usuario, "rol": cuenta.rol}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# Endpoint adicional para Swagger UI (OAuth2)
+@app.post("/token", response_model=schemas.Token)
+async def login_for_access_token_oauth2(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    # Buscar usuario (form_data.username es lo que envía Swagger)
+    user = authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.usuario, "rol": user.rol}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -85,7 +108,7 @@ def create_alcance(alcance: schemas.AlcanceCreate, db: Session = Depends(get_db)
     return db_alcance
 
 @app.delete("/alcances/{alcance_id}", status_code=204)
-def delete_alcance(alcance_id: int, db: Session = Depends(get_db)):
+def delete_alcance(alcance_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_alcance = db.query(models.Alcance).filter(models.Alcance.id == alcance_id).first()
     if not db_alcance:
         raise HTTPException(status_code=404, detail="Alcance no encontrado")
@@ -97,84 +120,221 @@ def delete_alcance(alcance_id: int, db: Session = Depends(get_db)):
 
 @app.get("/fincas", response_model=list[schemas.FincaResponse])
 def list_fincas(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    # Solo devuelve las fincas que pertenecen al usuario logueado
-    return db.query(models.Finca).filter(models.Finca.cuenta_id == current_user.id).all()
+    # Obtener las fincas asociadas al usuario a través de la tabla intermedia
+    fincas_cuentas = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.cuenta_id == current_user.id
+    ).all()
+    
+    finca_ids = [fc.finca_id for fc in fincas_cuentas]
+    
+    if not finca_ids:
+        return []
+    
+    fincas = db.query(models.Finca).filter(models.Finca.id.in_(finca_ids)).all()
+    
+    # Construir respuesta con propietarios
+    resultado = []
+    for finca in fincas:
+        propietarios = db.query(models.FincaCuenta).filter(
+            models.FincaCuenta.finca_id == finca.id
+        ).all()
+        
+        finca_dict = {
+            "id": finca.id,
+            "nombre": finca.nombre,
+            "ubicacion": finca.ubicacion,
+            "area_total": finca.area_total,
+            "propietarios": [
+                {"cuenta_id": p.cuenta_id, "rol_en_finca": p.rol_en_finca}
+                for p in propietarios
+            ]
+        }
+        resultado.append(finca_dict)
+    
+    return resultado
+
 
 @app.get("/fincas/{finca_id}", response_model=schemas.FincaResponse)
 def get_finca(finca_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    finca = db.query(models.Finca).filter(
-        models.Finca.id == finca_id,
-        models.Finca.cuenta_id == current_user.id
+    # Verificar que el usuario tiene acceso a esta finca
+    finca_cuenta = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == finca_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
-    if not finca:
+    
+    if not finca_cuenta:
         raise HTTPException(status_code=404, detail="Finca no encontrada o no tienes permiso")
-    return finca
+    
+    finca = db.query(models.Finca).filter(models.Finca.id == finca_id).first()
+    
+    # Obtener propietarios
+    propietarios = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == finca.id
+    ).all()
+    
+    return {
+        "id": finca.id,
+        "nombre": finca.nombre,
+        "ubicacion": finca.ubicacion,
+        "area_total": finca.area_total,
+        "propietarios": [
+            {"cuenta_id": p.cuenta_id, "rol_en_finca": p.rol_en_finca}
+            for p in propietarios
+        ]
+    }
+
 
 @app.post("/fincas", response_model=schemas.FincaResponse, status_code=201)
 def create_finca(finca: schemas.FincaCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    # Asigna automáticamente la finca al usuario logueado
-    db_finca = models.Finca(**finca.model_dump(exclude={"cuenta_id"}), cuenta_id=current_user.id)
+    # Crear la finca (sin cuenta_id)
+    db_finca = models.Finca(
+        nombre=finca.nombre,
+        ubicacion=finca.ubicacion,
+        area_total=finca.area_total
+    )
     db.add(db_finca)
     db.commit()
     db.refresh(db_finca)
-    return db_finca
+    
+    # Asociar propietarios
+    propietarios_ids = finca.propietarios_ids or []
+    
+    # Si no se especifican propietarios, el usuario que crea es el propietario
+    if not propietarios_ids:
+        propietarios_ids = [current_user.id]
+    
+    # Si el usuario que crea no está en la lista, agregarlo también
+    if current_user.id not in propietarios_ids:
+        propietarios_ids.append(current_user.id)
+    
+    # Crear registros en la tabla intermedia
+    for cuenta_id in propietarios_ids:
+        # Verificar que la cuenta existe
+        cuenta = db.query(models.Cuenta).filter(models.Cuenta.id == cuenta_id).first()
+        if not cuenta:
+            raise HTTPException(status_code=404, detail=f"Usuario con ID {cuenta_id} no encontrado")
+        
+        finca_cuenta = models.FincaCuenta(
+            finca_id=db_finca.id,
+            cuenta_id=cuenta_id,
+            rol_en_finca="propietario"
+        )
+        db.add(finca_cuenta)
+    
+    db.commit()
+    db.refresh(db_finca)
+    
+    # Obtener propietarios para la respuesta
+    propietarios = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == db_finca.id
+    ).all()
+    
+    return {
+        "id": db_finca.id,
+        "nombre": db_finca.nombre,
+        "ubicacion": db_finca.ubicacion,
+        "area_total": db_finca.area_total,
+        "propietarios": [
+            {"cuenta_id": p.cuenta_id, "rol_en_finca": p.rol_en_finca}
+            for p in propietarios
+        ]
+    }
+
 
 @app.put("/fincas/{finca_id}", response_model=schemas.FincaResponse)
 def update_finca(finca_id: int, finca: schemas.FincaUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    db_finca = db.query(models.Finca).filter(
-        models.Finca.id == finca_id,
-        models.Finca.cuenta_id == current_user.id
+    # Verificar que el usuario tiene acceso a esta finca
+    finca_cuenta = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == finca_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
-    if not db_finca:
+    
+    if not finca_cuenta:
         raise HTTPException(status_code=404, detail="Finca no encontrada o no tienes permiso")
-    for key, value in finca.model_dump(exclude_unset=True).items():
+    
+    db_finca = db.query(models.Finca).filter(models.Finca.id == finca_id).first()
+    
+    # Actualizar campos
+    data = finca.model_dump(exclude_unset=True)
+    for key, value in data.items():
         setattr(db_finca, key, value)
+    
     db.commit()
     db.refresh(db_finca)
-    return db_finca
+    
+    # Obtener propietarios para la respuesta
+    propietarios = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == db_finca.id
+    ).all()
+    
+    return {
+        "id": db_finca.id,
+        "nombre": db_finca.nombre,
+        "ubicacion": db_finca.ubicacion,
+        "area_total": db_finca.area_total,
+        "propietarios": [
+            {"cuenta_id": p.cuenta_id, "rol_en_finca": p.rol_en_finca}
+            for p in propietarios
+        ]
+    }
+
 
 @app.delete("/fincas/{finca_id}", status_code=204)
-def delete_finca(finca_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    db_finca = db.query(models.Finca).filter(
-        models.Finca.id == finca_id,
-        models.Finca.cuenta_id == current_user.id
+def delete_finca(finca_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
+    # Verificar que el usuario tiene acceso a esta finca
+    finca_cuenta = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == finca_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
-    if not db_finca:
+    
+    if not finca_cuenta:
         raise HTTPException(status_code=404, detail="Finca no encontrada o no tienes permiso")
+    
+    db_finca = db.query(models.Finca).filter(models.Finca.id == finca_id).first()
     db.delete(db_finca)
     db.commit()
-
 
 # ==================== LOTES (Con seguridad multi-usuario) ====================
 
 @app.get("/lotes", response_model=list[schemas.LoteResponse])
 def list_lotes(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    # Obtener los IDs de las fincas del usuario actual
-    fincas_ids = [finca.id for finca in db.query(models.Finca.id).filter(models.Finca.cuenta_id == current_user.id).all()]
+    # Obtener los IDs de las fincas del usuario actual a través de la tabla intermedia
+    fincas_cuentas = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.cuenta_id == current_user.id
+    ).all()
+    
+    fincas_ids = [fc.finca_id for fc in fincas_cuentas]
+    
     if not fincas_ids:
         return []
+    
     # Solo devolver lotes de las fincas del usuario
     return db.query(models.Lote).filter(models.Lote.finca_id.in_(fincas_ids)).all()
+
 
 @app.get("/lotes/{lote_id}", response_model=schemas.LoteResponse)
 def get_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     # Verificar que el lote existe y pertenece a una finca del usuario
-    lote = db.query(models.Lote).join(models.Finca).filter(
-        models.Lote.id == lote_id, 
-        models.Finca.cuenta_id == current_user.id
+    lote = db.query(models.Lote).join(models.Finca).join(models.FincaCuenta).filter(
+        models.Lote.id == lote_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
+    
     if not lote:
         raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
+    
     return lote
+
 
 @app.post("/lotes", response_model=schemas.LoteResponse, status_code=201)
 def create_lote(lote: schemas.LoteCreate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    # Verificar que la finca existe y le pertenece al usuario
-    finca = db.query(models.Finca).filter(
-        models.Finca.id == lote.finca_id, 
-        models.Finca.cuenta_id == current_user.id
+    # Verificar que la finca existe y el usuario tiene acceso a ella
+    finca_cuenta = db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.finca_id == lote.finca_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
-    if not finca:
+    
+    if not finca_cuenta:
         raise HTTPException(status_code=403, detail="No tienes permiso para agregar lotes a esta finca")
     
     db_lote = models.Lote(**lote.model_dump())
@@ -183,38 +343,46 @@ def create_lote(lote: schemas.LoteCreate, db: Session = Depends(get_db), current
     db.refresh(db_lote)
     return db_lote
 
+
 @app.put("/lotes/{lote_id}", response_model=schemas.LoteResponse)
 def update_lote(lote_id: int, lote: schemas.LoteUpdate, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     # Verificar que el lote existe y pertenece al usuario
-    db_lote = db.query(models.Lote).join(models.Finca).filter(
-        models.Lote.id == lote_id, 
-        models.Finca.cuenta_id == current_user.id
+    db_lote = db.query(models.Lote).join(models.Finca).join(models.FincaCuenta).filter(
+        models.Lote.id == lote_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
+    
     if not db_lote:
         raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
     
     data = lote.model_dump(exclude_unset=True)
+    
     if "finca_id" in data:
-        finca = db.query(models.Finca).filter(
-            models.Finca.id == data["finca_id"],
-            models.Finca.cuenta_id == current_user.id
+        # Verificar que el usuario tiene acceso a la nueva finca
+        finca_cuenta = db.query(models.FincaCuenta).filter(
+            models.FincaCuenta.finca_id == data["finca_id"],
+            models.FincaCuenta.cuenta_id == current_user.id
         ).first()
-        if not finca:
+        
+        if not finca_cuenta:
             raise HTTPException(status_code=403, detail="No tienes permiso para mover el lote a esa finca")
     
     for key, value in data.items():
         setattr(db_lote, key, value)
+    
     db.commit()
     db.refresh(db_lote)
     return db_lote
 
+
 @app.delete("/lotes/{lote_id}", status_code=204)
-def delete_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+def delete_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     # Verificar que el lote existe y pertenece al usuario
-    db_lote = db.query(models.Lote).join(models.Finca).filter(
-        models.Lote.id == lote_id, 
-        models.Finca.cuenta_id == current_user.id
+    db_lote = db.query(models.Lote).join(models.Finca).join(models.FincaCuenta).filter(
+        models.Lote.id == lote_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
+    
     if not db_lote:
         raise HTTPException(status_code=404, detail="Lote no encontrado o sin permisos")
     
@@ -227,9 +395,9 @@ def delete_lote(lote_id: int, db: Session = Depends(get_db), current_user: model
 @app.get("/lotes/{lote_id}/cultivos", response_model=list[schemas.CultivoResponse])
 def get_cultivos_by_lote(lote_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     # Verificar que el lote existe y pertenece al usuario
-    lote = db.query(models.Lote).join(models.Finca).filter(
-        models.Lote.id == lote_id, 
-        models.Finca.cuenta_id == current_user.id
+    lote = db.query(models.Lote).join(models.Finca).join(models.FincaCuenta).filter(
+        models.Lote.id == lote_id,
+        models.FincaCuenta.cuenta_id == current_user.id
     ).first()
     
     if not lote:
@@ -238,14 +406,6 @@ def get_cultivos_by_lote(lote_id: int, db: Session = Depends(get_db), current_us
     # Obtener todos los cultivos de este lote
     cultivos = db.query(models.Cultivo).filter(models.Cultivo.lote_id == lote_id).all()
     return cultivos
-
-@app.delete("/lotes/{lote_id}", status_code=204)
-def delete_lote(lote_id: int, db: Session = Depends(get_db)):
-    db_lote = db.query(models.Lote).filter(models.Lote.id == lote_id).first()
-    if not db_lote:
-        raise HTTPException(status_code=404, detail="Lote no encontrado")
-    db.delete(db_lote)
-    db.commit()
 
 
 # ==================== CULTIVOS ====================
@@ -289,7 +449,7 @@ def update_cultivo(cultivo_id: int, cultivo: schemas.CultivoUpdate, db: Session 
     return db_cultivo
 
 @app.delete("/cultivos/{cultivo_id}", status_code=204)
-def delete_cultivo(cultivo_id: int, db: Session = Depends(get_db)):
+def delete_cultivo(cultivo_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == cultivo_id).first()
     if not db_cultivo:
         raise HTTPException(status_code=404, detail="Cultivo no encontrado")
@@ -333,7 +493,7 @@ def update_insumo(insumo_id: int, insumo: schemas.InsumoUpdate, db: Session = De
     return db_insumo
 
 @app.delete("/insumos/{insumo_id}", status_code=204)
-def delete_insumo(insumo_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+def delete_insumo(insumo_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_insumo = db.query(models.Insumo).filter(models.Insumo.id == insumo_id).first()
     if not db_insumo:
         raise HTTPException(status_code=404, detail="Insumo no encontrado")
@@ -341,7 +501,8 @@ def delete_insumo(insumo_id: int, db: Session = Depends(get_db), current_user: m
     db.delete(db_insumo)
     db.commit()
     return None
-# ====# ==================== COMPRAS (Con seguridad multi-usuario) ====================
+
+# ==================== COMPRAS (Con seguridad multi-usuario) ====================
 
 @app.get("/compras", response_model=list[schemas.CompraResponse])
 def list_compras(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
@@ -488,7 +649,7 @@ def update_compra(compra_id: int, compra: schemas.CompraUpdate, db: Session = De
     }
 
 @app.delete("/compras/{compra_id}", status_code=204)
-def delete_compra(compra_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+def delete_compra(compra_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_compra = db.query(models.Compra).filter(models.Compra.id == compra_id).first()
     if not db_compra:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -616,7 +777,7 @@ def update_cosecha(cosecha_id: int, cosecha: schemas.CosechaUpdate, db: Session 
     }
 
 @app.delete("/cosechas/{cosecha_id}", status_code=204)
-def delete_cosecha(cosecha_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+def delete_cosecha(cosecha_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_cosecha = db.query(models.Cosecha).filter(models.Cosecha.id == cosecha_id).first()
     if not db_cosecha:
         raise HTTPException(status_code=404, detail="Cosecha no encontrada")
@@ -658,7 +819,7 @@ def update_categoria(categoria_id: int, categoria: schemas.CategoriaUpdate, db: 
     return db_categoria
 
 @app.delete("/categorias/{categoria_id}", status_code=204)
-def delete_categoria(categoria_id: int, db: Session = Depends(get_db)):
+def delete_categoria(categoria_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_categoria = db.query(models.Categoria).filter(models.Categoria.id == categoria_id).first()
     if not db_categoria:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
@@ -689,6 +850,7 @@ def list_tareas(db: Session = Depends(get_db), current_user: models.Cuenta = Dep
         db.commit()
         
     return tareas
+
 @app.get("/tareas/{tarea_id}", response_model=schemas.TareaResponse)
 def get_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
     tarea = db.query(models.Tarea).filter(models.Tarea.id == tarea_id).first()
@@ -765,7 +927,7 @@ def update_tarea(tarea_id: int, tarea: schemas.TareaUpdate, db: Session = Depend
     return db_tarea
 
 @app.delete("/tareas/{tarea_id}", status_code=204)
-def delete_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+def delete_tarea(tarea_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_tarea = db.query(models.Tarea).filter(models.Tarea.id == tarea_id).first()
     if not db_tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
@@ -806,25 +968,6 @@ def get_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current_us
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto operativo no encontrado")
     
-    data = gasto.model_dump(exclude_unset=True)
-    
-    # 👇 VALIDACIÓN DE FECHAS (va después de obtener el gasto, antes de actualizar)
-    if "fecha" in data or "fecha_limite" in data:
-        fecha_final = data.get("fecha", db_gasto.fecha)
-        fecha_limite_final = data.get("fecha_limite", db_gasto.fecha_limite)
-        if fecha_final and fecha_limite_final:
-            if fecha_limite_final < fecha_final:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="La fecha límite no puede ser anterior a la fecha de asignación"
-                )
-    
-    for key, value in data.items():
-        setattr(db_gasto, key, value)
-    
-    db.commit()
-    db.refresh(db_gasto)
-
     categoria = db.query(models.Categoria).filter(models.Categoria.id == gasto.categoria_id).first() if gasto.categoria_id else None
     tarea = db.query(models.Tarea).filter(models.Tarea.id == gasto.tarea_id).first() if gasto.tarea_id else None
     return {
@@ -909,7 +1052,7 @@ def update_gasto_operativo(gasto_id: int, gasto: schemas.GastoOperativoUpdate, d
     }
 
 @app.delete("/gastos-operativos/{gasto_id}", status_code=204)
-def delete_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
+def delete_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current_user: models.Cuenta = Depends(require_admin)):
     db_gasto = db.query(models.GastoOperativo).filter(models.GastoOperativo.id == gasto_id).first()
     if not db_gasto:
         raise HTTPException(status_code=404, detail="Gasto operativo no encontrado")
@@ -922,36 +1065,77 @@ def delete_gasto_operativo(gasto_id: int, db: Session = Depends(get_db), current
 
 @app.get("/dashboard")
 def get_dashboard(db: Session = Depends(get_db), current_user: models.Cuenta = Depends(get_current_user)):
-    # Conteos básicos
-    total_fincas = db.query(models.Finca).count()
-    total_lotes = db.query(models.Lote).count()
-    total_cultivos = db.query(models.Cultivo).count()
+    # 1️ Obtener SOLO las fincas del usuario actual
+    fincas_usuario = db.query(models.FincaCuenta).filter(
+    models.FincaCuenta.cuenta_id == current_user.id
+    ).all()
     
-    # Tareas
-    tareas_pendientes = db.query(models.Tarea).filter(
-        models.Tarea.estado.in_(['Pendiente', 'En progreso'])
-    ).count()
+    finca_ids = [fc.finca_id for fc in fincas_usuario]
     
-    tareas_vencidas = db.query(models.Tarea).filter(
-        models.Tarea.estado == 'Vencida'
-    ).count()
+    # 2️⃣ Conteos básicos (SOLO del usuario)
+    total_fincas = len(fincas_usuario)  # ✅ Cuenta solo las fincas del usuario
     
-    # Últimas tareas pendientes (para mostrar en lista)
-    ultimas_tareas = db.query(models.Tarea).filter(
-        models.Tarea.estado.in_(['Pendiente', 'En progreso'])
-    ).order_by(models.Tarea.fecha.desc()).limit(5).all()
+    # Lotes: solo de las fincas del usuario
+    total_lotes = 0
+    if finca_ids:
+        total_lotes = db.query(models.Lote).filter(
+            models.Lote.finca_id.in_(finca_ids)
+        ).count()
     
+    # Cultivos: solo de los lotes del usuario
+    total_cultivos = 0
+    if finca_ids:
+        total_cultivos = db.query(models.Cultivo).join(models.Lote).filter(
+            models.Lote.finca_id.in_(finca_ids)
+        ).count()
+    
+    # 3️⃣ Tareas (solo de cultivos/lotes del usuario)
+    tareas_pendientes = 0
+    tareas_vencidas = 0
     tareas_lista = []
-    for t in ultimas_tareas:
-        tareas_lista.append({
-            "id": t.id,
-            "nombre": t.nombre,
-            "estado": t.estado,
-            "fecha_limite": str(t.fecha_limite) if t.fecha_limite else None,
-            "tipo": t.tipo
-        })
     
-    # Insumos con stock bajo (menos de 10 unidades)
+    if finca_ids:
+        # Obtener IDs de lotes del usuario
+        lotes_ids = [lote.id for lote in db.query(models.Lote).filter(
+            models.Lote.finca_id.in_(finca_ids)
+        ).all()]
+        
+        # Obtener IDs de cultivos del usuario
+        cultivos_ids = [cultivo.id for cultivo in db.query(models.Cultivo).join(models.Lote).filter(
+            models.Lote.finca_id.in_(finca_ids)
+        ).all()]
+        
+        # Tareas pendientes
+        tareas_pendientes = db.query(models.Tarea).filter(
+            models.Tarea.estado.in_(['Pendiente', 'En progreso']),
+            (models.Tarea.lote_id.in_(lotes_ids) if lotes_ids else False) |
+            (models.Tarea.cultivo_id.in_(cultivos_ids) if cultivos_ids else False)
+        ).count()
+        
+        # Tareas vencidas
+        tareas_vencidas = db.query(models.Tarea).filter(
+            models.Tarea.estado == 'Vencida',
+            (models.Tarea.lote_id.in_(lotes_ids) if lotes_ids else False) |
+            (models.Tarea.cultivo_id.in_(cultivos_ids) if cultivos_ids else False)
+        ).count()
+        
+        # Últimas tareas pendientes
+        ultimas_tareas = db.query(models.Tarea).filter(
+            models.Tarea.estado.in_(['Pendiente', 'En progreso']),
+            (models.Tarea.lote_id.in_(lotes_ids) if lotes_ids else False) |
+            (models.Tarea.cultivo_id.in_(cultivos_ids) if cultivos_ids else False)
+        ).order_by(models.Tarea.fecha.desc()).limit(5).all()
+        
+        for t in ultimas_tareas:
+            tareas_lista.append({
+                "id": t.id,
+                "nombre": t.nombre,
+                "estado": t.estado,
+                "fecha_limite": str(t.fecha_limite) if t.fecha_limite else None,
+                "tipo": t.tipo
+            })
+    
+    # 4️⃣ Insumos con stock bajo (globales, no filtrados por usuario)
     insumos_stock_bajo = db.query(models.Insumo).filter(
         models.Insumo.stock_actual < 10
     ).order_by(models.Insumo.stock_actual.asc()).limit(5).all()
@@ -965,51 +1149,81 @@ def get_dashboard(db: Session = Depends(get_db), current_user: models.Cuenta = D
             "unidad": i.unidad
         })
     
-    # Últimas cosechas
-    ultimas_cosechas = db.query(models.Cosecha).order_by(
-        models.Cosecha.fecha.desc()
-    ).limit(5).all()
-    
+    # 5️ Últimas cosechas (SOLO del usuario)
     cosechas_lista = []
-    for c in ultimas_cosechas:
-        cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == c.cultivo_id).first()
-        cosechas_lista.append({
-            "id": c.id,
-            "cultivo": cultivo.nombre if cultivo else "N/A",
-            "cantidad": c.cantidad,
-            "unidad": c.unidad,
-            "fecha": str(c.fecha) if c.fecha else None
-        })
+    if finca_ids:
+        cultivos_ids_cosechas = [c.id for c in db.query(models.Cultivo).join(models.Lote).filter(
+            models.Lote.finca_id.in_(finca_ids)
+        ).all()]
+        
+        if cultivos_ids_cosechas:
+            ultimas_cosechas = db.query(models.Cosecha).filter(
+                models.Cosecha.cultivo_id.in_(cultivos_ids_cosechas)
+            ).order_by(models.Cosecha.fecha.desc()).limit(5).all()
+            
+            for c in ultimas_cosechas:
+                cultivo = db.query(models.Cultivo).filter(models.Cultivo.id == c.cultivo_id).first()
+                cosechas_lista.append({
+                    "id": c.id,
+                    "cultivo": cultivo.nombre if cultivo else "N/A",
+                    "cantidad": c.cantidad,
+                    "unidad": c.unidad,
+                    "fecha": str(c.fecha) if c.fecha else None
+                })
     
-    # Gastos por categoría (para gráfico)
-    gastos_por_categoria = db.query(
-        models.Categoria.nombre,
-        func.sum(models.GastoOperativo.monto).label('total')
-    ).join(
-        models.GastoOperativo, models.Categoria.id == models.GastoOperativo.categoria_id
-    ).group_by(
-        models.Categoria.nombre
-    ).all()
+    # 6️ Gastos por categoría (SOLO del usuario)
+    gastos_chart = []
+    if finca_ids:
+        gastos_por_categoria = db.query(
+            models.Categoria.nombre,
+            func.sum(models.GastoOperativo.monto).label('total')
+        ).join(
+            models.GastoOperativo, models.Categoria.id == models.GastoOperativo.categoria_id
+        ).filter(
+            models.GastoOperativo.finca_id.in_(finca_ids)
+        ).group_by(
+            models.Categoria.nombre
+        ).all()
+        
+        gastos_chart = [{"categoria": g.nombre, "total": float(g.total)} for g in gastos_por_categoria]
     
-    gastos_chart = [{"categoria": g.nombre, "total": float(g.total)} for g in gastos_por_categoria]
+    # 7️ Cosechas por cultivo (SOLO del usuario)
+    cosechas_chart = []
+    if finca_ids:
+        cultivos_ids_chart = [c.id for c in db.query(models.Cultivo).join(models.Lote).filter(
+            models.Lote.finca_id.in_(finca_ids)
+        ).all()]
+        
+        if cultivos_ids_chart:
+            cosechas_por_cultivo = db.query(
+                models.Cultivo.nombre,
+                func.sum(models.Cosecha.cantidad).label('total')
+            ).join(
+                models.Cosecha, models.Cultivo.id == models.Cosecha.cultivo_id
+            ).filter(
+                models.Cultivo.id.in_(cultivos_ids_chart)
+            ).group_by(
+                models.Cultivo.nombre
+            ).all()
+            
+            cosechas_chart = [{"cultivo": c.nombre, "total": float(c.total)} for c in cosechas_por_cultivo]
     
-    # Cosechas por cultivo (para gráfico)
-    cosechas_por_cultivo = db.query(
-        models.Cultivo.nombre,
-        func.sum(models.Cosecha.cantidad).label('total')
-    ).join(
-        models.Cosecha, models.Cultivo.id == models.Cosecha.cultivo_id
-    ).group_by(
-        models.Cultivo.nombre
-    ).all()
+    # 8️⃣ Total invertido (SOLO del usuario)
+    total_compras = 0
+    total_gastos = 0
     
-    cosechas_chart = [{"cultivo": c.nombre, "total": float(c.total)} for c in cosechas_por_cultivo]
+    if finca_ids:
+        # Compras de insumos (globales, no filtradas por finca)
+        total_compras = db.query(func.sum(models.Compra.costo_total)).scalar() or 0
+        
+        # Gastos operativos de las fincas del usuario
+        total_gastos = db.query(func.sum(models.GastoOperativo.monto)).filter(
+            models.GastoOperativo.finca_id.in_(finca_ids)
+        ).scalar() or 0
     
-    # Total invertido (compras + gastos operativos)
-    total_compras = db.query(func.sum(models.Compra.costo_total)).scalar() or 0
-    total_gastos = db.query(func.sum(models.GastoOperativo.monto)).scalar() or 0
     total_invertido = float(total_compras) + float(total_gastos)
     
+    # 9️ Retornar respuesta
     return {
         "kpis": {
             "total_fincas": total_fincas,
@@ -1026,3 +1240,134 @@ def get_dashboard(db: Session = Depends(get_db), current_user: models.Cuenta = D
         "gastos_por_categoria": gastos_chart,
         "cosechas_por_cultivo": cosechas_chart
     }
+    # ==================== GESTIÓN DE COLABORADORES (SOLO ADMIN) ====================
+
+@app.post("/admin/crear-colaborador", status_code=201)
+def crear_colaborador(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.Cuenta = Depends(require_admin)
+):
+    """
+    Solo administradores pueden crear colaboradores y asignarles fincas.
+    data = {
+        "usuario": "nombre_usuario",
+        "password": "contraseña",
+        "finca_ids": [1, 2, 3]  # IDs de fincas a asignar
+    }
+    """
+    usuario = data.get("usuario")
+    password = data.get("password")
+    finca_ids = data.get("finca_ids", [])
+    
+    # Validar que se proporcionaron los datos necesarios
+    if not usuario or not password:
+        raise HTTPException(status_code=400, detail="Usuario y contraseña son obligatorios")
+    
+    # Verificar que el usuario no existe
+    db_cuenta = db.query(models.Cuenta).filter(models.Cuenta.usuario == usuario).first()
+    if db_cuenta:
+        raise HTTPException(status_code=400, detail="El usuario ya existe")
+    
+    # Crear el nuevo usuario con rol "colaborador"
+    hashed_password = get_password_hash(password)
+    nuevo_colaborador = models.Cuenta(
+        usuario=usuario,
+        hashed_password=hashed_password,
+        rol="colaborador"
+    )
+    db.add(nuevo_colaborador)
+    db.commit()
+    db.refresh(nuevo_colaborador)
+    
+    # Asignar las fincas al nuevo colaborador
+    fincas_asignadas = []
+    for finca_id in finca_ids:
+        # Verificar que la finca existe y pertenece al admin
+        finca_cuenta = db.query(models.FincaCuenta).filter(
+            models.FincaCuenta.finca_id == finca_id,
+            models.FincaCuenta.cuenta_id == current_user.id,
+            models.FincaCuenta.rol_en_finca == "propietario"
+        ).first()
+        
+        if finca_cuenta:
+            # Crear la relación en fincas_cuentas
+            relacion = models.FincaCuenta(
+                finca_id=finca_id,
+                cuenta_id=nuevo_colaborador.id,
+                rol_en_finca="colaborador"
+            )
+            db.add(relacion)
+            fincas_asignadas.append(finca_id)
+    
+    db.commit()
+    
+    return {
+        "message": f"Colaborador '{usuario}' creado exitosamente",
+        "usuario_id": nuevo_colaborador.id,
+        "fincas_asignadas": fincas_asignadas
+    }
+
+
+@app.get("/admin/colaboradores")
+def listar_colaboradores(
+    db: Session = Depends(get_db),
+    current_user: models.Cuenta = Depends(require_admin)
+):
+    """Lista todos los colaboradores y sus fincas asignadas (solo admin)"""
+    colaboradores = db.query(models.Cuenta).filter(
+        models.Cuenta.rol == "colaborador"
+    ).all()
+    
+    resultado = []
+    for colab in colaboradores:
+        # Obtener fincas asignadas a este colaborador
+        fincas_cuentas = db.query(models.FincaCuenta).filter(
+            models.FincaCuenta.cuenta_id == colab.id
+        ).all()
+        
+        fincas_asignadas = []
+        for fc in fincas_cuentas:
+            finca = db.query(models.Finca).filter(models.Finca.id == fc.finca_id).first()
+            if finca:
+                fincas_asignadas.append({
+                    "finca_id": finca.id,
+                    "nombre": finca.nombre
+                })
+        
+        resultado.append({
+            "id": colab.id,
+            "usuario": colab.usuario,
+            "rol": colab.rol,
+            "fincas_asignadas": fincas_asignadas
+        })
+    
+    return resultado
+
+
+@app.delete("/admin/colaboradores/{colaborador_id}", status_code=204)
+def eliminar_colaborador(
+    colaborador_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Cuenta = Depends(require_admin)
+):
+    """Elimina un colaborador y sus relaciones con fincas (solo admin)"""
+    colaborador = db.query(models.Cuenta).filter(
+        models.Cuenta.id == colaborador_id,
+        models.Cuenta.rol == "colaborador"
+    ).first()
+    
+    if not colaborador:
+        raise HTTPException(status_code=404, detail="Colaborador no encontrado")
+    
+    # Eliminar relaciones con fincas
+    db.query(models.FincaCuenta).filter(
+        models.FincaCuenta.cuenta_id == colaborador_id
+    ).delete()
+    
+    # Eliminar el usuario
+    db.delete(colaborador)
+    db.commit()
+    
+    return None
+    

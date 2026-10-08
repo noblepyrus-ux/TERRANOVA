@@ -8,10 +8,24 @@ class Finca(Base):
     nombre = Column(String, nullable=False)
     ubicacion = Column(String, nullable=True)
     area_total = Column(Float, nullable=True)
-    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=True) 
-  
+    propietarios = relationship("FincaCuenta", back_populates="finca", cascade="all, delete-orphan")
     lotes = relationship("Lote", back_populates="finca", cascade="all, delete-orphan")
     gastos_operativos = relationship("GastoOperativo", back_populates="finca", cascade="all, delete-orphan")
+
+class FincaCuenta(Base):
+    """Tabla intermedia para relación N:M entre Fincas y Cuentas.
+    Permite que una finca tenga varios propietarios/usuarios
+    y que un usuario tenga varias fincas."""
+    __tablename__ = "fincas_cuentas"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    finca_id = Column(Integer, ForeignKey("fincas.id", ondelete="CASCADE"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id", ondelete="CASCADE"), nullable=False)
+    rol_en_finca = Column(String, nullable=False, default="propietario")  # propietario, administrador, trabajador
+    
+    # Relaciones
+    finca = relationship("Finca", back_populates="propietarios")
+    cuenta = relationship("Cuenta", back_populates="fincas_asociadas")
 
 class Lote(Base):
     __tablename__ = "lotes"
@@ -148,4 +162,5 @@ class Cuenta(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    rol = Column(String, nullable=True, default="admin")
+    rol = Column(String, nullable=True, default="admin") 
+    fincas_asociadas = relationship("FincaCuenta", back_populates="cuenta", cascade="all, delete-orphan")

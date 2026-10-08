@@ -50,11 +50,16 @@
     </aside>
   
     <!-- Contenido principal -->
-    <main class="main-content" style="margin-left: 250px; flex: 1; padding: 2rem;">
-      <header class="dashboard-header" style="margin-bottom: 2rem;">
-        <h1 style="margin: 0; color: #1b5e20; font-size: 2rem; display: flex; align-items: center; gap: 0.75rem;">📊 Panel de Control</h1>
-        <p class="subtitle" style="color: #666; font-size: 1rem; margin: 0.25rem 0 0;">Resumen general de tu operación agrícola</p>
-      </header>
+<main class="main-content" style="margin-left: 250px; flex: 1; padding: 2rem;">
+  <header class="dashboard-header">
+    <div class="header-left">
+      <h1>📊 Panel de Control</h1>
+      <p class="subtitle">Resumen general de tu operación agrícola</p>
+    </div>
+    <button *ngIf="authService.esAdmin()" (click)="mostrarFormColaborador = true" class="btn-colaborador">
+       Crear Colaborador
+    </button>
+  </header>
   
       <!-- Mensaje de error -->
       <div *ngIf="errorMessage" class="message-box error fade-in" style="padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; background: #fdecea; border: 1px solid #f5c6cb; color: #721c24;">
@@ -203,4 +208,43 @@
         </div>
       </div>
     </main>
+
+    <!-- Modal para crear colaborador -->
+<div *ngIf="mostrarFormColaborador" class="modal-overlay" (click)="cerrarFormColaborador()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h3>Crear Nuevo Colaborador</h3>
+    
+    <form (ngSubmit)="crearColaborador()">
+      <div class="form-group">
+        <label>Nombre de usuario:</label>
+        <input type="text" [(ngModel)]="nuevoUsuario" name="usuario" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Contraseña:</label>
+        <input type="password" [(ngModel)]="nuevaPassword" name="password" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Fincas a asignar:</label>
+        <div *ngFor="let finca of fincas" class="checkbox-group">
+          <label>
+            <input type="checkbox" (change)="toggleFinca(finca.id, $event)">
+            {{ finca.nombre }}
+          </label>
+        </div>
+      </div>
+      
+      <div class="modal-actions">
+        <button type="button" (click)="cerrarFormColaborador()" class="btn-cancelar">Cancelar</button>
+        <button type="submit" class="btn-crear">Crear Colaborador</button>
+      </div>
+    </form>
+    
+    <div *ngIf="mensajeColaborador" class="alert" [class.alert-success]="exitoColaborador" [class.alert-error]="!exitoColaborador">
+      {{ mensajeColaborador }}
+    </div>
+  </div>
+</div>
+
   </div>

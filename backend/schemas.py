@@ -42,22 +42,23 @@ class FincaBase(BaseModel):
     nombre: str
     ubicacion: Optional[str] = None
     area_total: Optional[float] = None
-    cuenta_id: Optional[int] = None
+    #  ELIMINADO: cuenta_id
 
 class FincaCreate(FincaBase):
-    pass
+    # ✅ NUEVO: Lista de IDs de cuentas que serán propietarios
+    propietarios_ids: Optional[list[int]] = None
 
 class FincaUpdate(BaseModel):
     nombre: Optional[str] = None
     ubicacion: Optional[str] = None
     area_total: Optional[float] = None
-    cuenta_id: Optional[int] = None
+    # ❌ ELIMINADO: cuenta_id
 
 class FincaResponse(FincaBase):
     id: int
+    # ✅ NUEVO: Lista de propietarios asociados
+    propietarios: Optional[list[dict]] = None
     model_config = ConfigDict(from_attributes=True)
-
-
 # ==================== LOTES ====================
 class LoteBase(BaseModel):
     nombre: str
@@ -206,6 +207,19 @@ class CategoriaResponse(CategoriaBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
+
+# ==================== FINCAS-CUENTAS (TABLA INTERMEDIA) ====================
+class FincaCuentaBase(BaseModel):
+    finca_id: int
+    cuenta_id: int
+    rol_en_finca: str = "propietario"
+
+class FincaCuentaCreate(FincaCuentaBase):
+    pass
+
+class FincaCuentaResponse(FincaCuentaBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
 
 # ==================== TAREAS ====================
 TipoTarea = Literal[

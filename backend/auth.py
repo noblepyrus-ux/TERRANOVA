@@ -33,7 +33,10 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -68,3 +71,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if cuenta is None:
         raise credentials_exception
     return cuenta
+
+    # ==========================================
+# DEPENDENCIA PARA VERIFICAR ROL ADMIN
+# ==========================================
+def require_admin(current_user: models.Cuenta = Depends(get_current_user)):
+    """
+    Dependencia que verifica que el usuario actual tenga rol 'admin'.
+    Si no es admin, retorna error 403 Forbidden.
+    """
+    if current_user.rol != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos de administrador para realizar esta acción"
+        )
+    return current_user
